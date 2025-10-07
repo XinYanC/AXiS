@@ -1,2 +1,2 @@
 #/bin/bash
-source min-demo-venv/bin/activate
+source AXiS-venv/bin/activate
