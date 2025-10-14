@@ -3,7 +3,7 @@
 This file deals with our city-level data.
 """
 
-SUCCESS = 0
+ID = 'id'
 NAME = 'name'
 STATE_CODE = 'state_code'
 
@@ -20,4 +20,6 @@ def create(flds: str):
         raise ValueError(f'Bad type for {type(flds)=}')
     if not flds.get(NAME):
         raise ValueError(f'Bad value for {flds.get(NAME)=}')
-    return SUCCESS
+    new_id = len(cities) + 1
+    cities[new_id] = flds
+    return new_id
