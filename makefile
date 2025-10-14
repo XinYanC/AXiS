@@ -18,7 +18,7 @@ github: FORCE
 all_tests: FORCE
 	cd $(CITIES_DIR); make tests
 	cd $(SEC_DIR); make tests
-	cd $(SERVER_DIR): make tests
+	cd $(SERVER_DIR); make tests
 
 dev_env: FORCE
 	pip install -r $(REQ_DIR)/requirements-dev.txt
