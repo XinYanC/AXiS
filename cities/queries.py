@@ -16,9 +16,7 @@ SAMPLE_CITY = {
     STATE_CODE: 'NY',
 }
 
-city_cache = {
-    1: SAMPLE_CITY,
-}
+city_cache = {}
 
 def db_connect(success_ratio: int) -> bool:
     """
@@ -48,6 +46,13 @@ def create(flds: dict) -> str:
     city_cache[new_id] = flds
     return new_id
 
+def delete(city_id: str) -> bool:
+    if city_id not in city_cache:
+        raise ValueError(f'No such city: {city_id}')
+    del city_cache[city_id]
+    return True
+
+    
 def read() -> dict:
     if not db_connect(3):
         raise ConnectionError('Could not connect to DB.')
