@@ -99,3 +99,8 @@ def test_is_valid_id_min_len():
 
     assert isinstance(qry.is_valid_id(' '), bool)
     assert qry.is_valid_id(' ')
+
+
+def test_delete_returns_true_and_removes(temp_city):
+    assert qry.delete(temp_city)
+    assert temp_city not in qry.city_cache
