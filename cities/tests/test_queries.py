@@ -104,3 +104,10 @@ def test_is_valid_id_min_len():
 def test_delete_returns_true_and_removes(temp_city):
     assert qry.delete(temp_city)
     assert temp_city not in qry.city_cache
+
+def test_read_returns_expected_fields(temp_city):
+    cities = qry.read()
+    for city_id, data in cities.items():
+        assert 'name' in data
+        assert 'country' in data
+        assert 'population' in data
