@@ -11,6 +11,10 @@ import cities.queries as qry
 def temp_city():
     new_rec_id = qry.create(qry.SAMPLE_CITY)
     yield new_rec_id
+    try:
+        qry.delete(new_rec_id)
+    except ValueError:
+        print('The record was already deleted.')
 
     
 @pytest.mark.skip('This is an example of a bad test!')
@@ -64,3 +68,34 @@ def test_read(mock_db_connect, temp_city):
 def test_read_cant_connect(mock_db_connect):
     with pytest.raises(ConnectionError):
         cities = qry.read()
+
+
+def test_is_valid_id(temp_city):
+    # valid id (from fixture)
+    result = qry.is_valid_id(temp_city)
+    assert isinstance(result, bool)
+    assert result is True
+
+
+def test_is_valid_id_invalid_types():
+    assert not qry.is_valid_id(None)
+    assert not qry.is_valid_id(123)
+
+
+def test_is_valid_id_invalid_length():
+    # empty string is invalid
+    assert not qry.is_valid_id('')
+
+
+def test_is_valid_id_min_len():
+    old_min = qry.MIN_ID_LEN
+    try:
+        # len has to be greater or equal to MIN_ID_LEN
+        qry.MIN_ID_LEN = 2
+        assert not qry.is_valid_id('a')
+        assert qry.is_valid_id('ab')
+    finally:
+        qry.MIN_ID_LEN = old_min
+
+    assert isinstance(qry.is_valid_id(' '), bool)
+    assert qry.is_valid_id(' ')
