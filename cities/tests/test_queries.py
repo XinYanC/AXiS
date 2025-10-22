@@ -111,3 +111,10 @@ def test_read_returns_expected_fields(temp_city):
         assert 'name' in data
         assert 'country' in data
         assert 'population' in data
+
+def test_create_duplicate_city():
+    rec_id1 = qry.create(qry.SAMPLE_CITY)
+    rec_id2 = qry.create(qry.SAMPLE_CITY)
+    assert rec_id1 != rec_id2
+    qry.delete(rec_id1)
+    qry.delete(rec_id2)
