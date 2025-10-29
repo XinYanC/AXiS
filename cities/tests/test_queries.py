@@ -24,6 +24,38 @@ def temp_city():
     except ValueError:
         print('The record was already deleted.')
 
+
+@pytest.fixture(scope='function')
+def sample_cities():
+    """Provide a small set of cities in the cache for search tests.
+
+    This fixture replaces the module-level `city_cache` with a known
+    dictionary and restores the original cache afterwards.
+    """
+    original_cache = dict(qry.city_cache)
+    qry.city_cache = {
+        'c1': {'name': 'New York', 'state_code': 'NY'},
+        'c2': {'name': 'Los Angeles', 'state_code': 'CA'},
+        'c3': {'name': 'New Orleans', 'state_code': 'LA'},
+    }
+    try:
+        yield qry.city_cache
+    finally:
+        qry.city_cache = original_cache
+
+
+def test_search_cities_by_name_with_fixture(sample_cities):
+    # partial match
+    results = qry.search_cities_by_name('New')
+    assert isinstance(results, dict)
+    assert 'c1' in results
+    assert 'c3' in results
+    assert 'c2' not in results
+
+    # case-insensitive match
+    results_ci = qry.search_cities_by_name('los angeles')
+    assert 'c2' in results_ci
+
     
 @pytest.mark.skip('This is an example of a bad test!')
 def test_bad_test_for_num_cities():
