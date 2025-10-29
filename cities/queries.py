@@ -32,15 +32,20 @@ def num_cities() -> int:
     return len(city_cache)
 
 
-def create(flds: dict) -> str:
-    dbc.connect_db()
-    if not isinstance(flds, dict):
-        raise ValueError(f'Bad type for {type(flds)=}')
-    if not flds.get(NAME):
-        raise ValueError(f'Bad value for {flds.get(NAME)=}')
-    new_id = dbc.create(CITY_COLLECTION, flds)
-    print(f'{new_id}')
-    return new_id
+def create(city):
+    if not isinstance(city, dict):
+        raise ValueError("City must be a dictionary.")
+    if 'name' not in city or not city['name']:
+        raise ValueError("City must have a non-empty 'name'.")
+    if 'state_code' not in city or not city['state_code']:
+        raise ValueError("City must have a non-empty 'state_code'.")
+
+    import uuid
+    rec_id = uuid.uuid4().hex[: max(8, MIN_ID_LEN)]
+
+    city_cache[rec_id] = city
+    return rec_id
+
 
 
 def delete(city_id: str) -> bool:
