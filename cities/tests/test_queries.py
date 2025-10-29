@@ -77,6 +77,17 @@ def test_read_cant_connect(mock_db_connect):
     with pytest.raises(ConnectionError):
         cities = qry.read()
 
+def test_create_missing_name_field():
+    # Missing 'name' key should raise
+    with pytest.raises(ValueError):
+        qry.create({'state_code': 'NY'})
+
+
+def test_create_missing_state_code_field():
+    # Missing 'state_code' key should raise
+    with pytest.raises(ValueError):
+        qry.create({'name': 'City Without State'})
+
 
 def test_is_valid_id(temp_city):
     # valid id (from fixture)
