@@ -56,6 +56,18 @@ def test_search_cities_by_name_with_fixture(sample_cities):
     results_ci = qry.search_cities_by_name('los angeles')
     assert 'c2' in results_ci
 
+
+def test_search_cities_by_name_no_matches_with_patch():
+    """Use patch to set the cache and verify a search with no matches returns an empty dict."""
+    patched_cache = {
+        'a': {'name': 'Springfield', 'state_code': 'IL'},
+        'b': {'name': 'Shelbyville', 'state_code': 'IL'},
+    }
+    with patch('cities.queries.city_cache', new=patched_cache):
+        results = qry.search_cities_by_name('Chicago')
+        assert isinstance(results, dict)
+        assert len(results) == 0
+
     
 @pytest.mark.skip('This is an example of a bad test!')
 def test_bad_test_for_num_cities():
