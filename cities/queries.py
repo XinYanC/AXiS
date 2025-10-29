@@ -42,6 +42,7 @@ def create(flds: dict) -> str:
     print(f'{new_id}')
     return new_id
 
+
 def delete(city_id: str) -> bool:
     if city_id not in city_cache:
         raise ValueError(f'No such city: {city_id}')
@@ -51,6 +52,35 @@ def delete(city_id: str) -> bool:
     
 def read() -> dict:
     return city_cache
+
+
+def search_cities_by_name(search_term: str) -> dict:
+    """
+    Search for cities by name (case-insensitive partial match).
+    
+    Args:
+        search_term: The term to search for in city names
+        
+    Returns:
+        dict: Dictionary of cities matching the search term
+        
+    Raises:
+        ValueError: If search_term is not a string or is empty
+    """
+    if not isinstance(search_term, str):
+        raise ValueError(f'Search term must be a string, got {type(search_term)}')
+    if not search_term.strip():
+        raise ValueError('Search term cannot be empty')
+    
+    cities = read()
+    search_lower = search_term.lower().strip()
+    matching_cities = {}
+    
+    for city_id, city_data in cities.items():
+        if search_lower in city_data.get(NAME, '').lower():
+            matching_cities[city_id] = city_data
+    
+    return matching_cities
 
 
 def main():
