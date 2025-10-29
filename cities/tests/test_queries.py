@@ -42,8 +42,19 @@ def test_num_cities():
 def test_good_create():
     old_count = qry.num_cities()
     new_rec_id = qry.create(qry.SAMPLE_CITY)
+
+    # id returned should be valid
     assert qry.is_valid_id(new_rec_id)
-    # assert qry.num_cities() == old_count + 1
+
+    # city count should increase
+    assert qry.num_cities() == old_count + 1
+
+    # city data should be stored correctly
+    created_city = qry.city_cache.get(new_rec_id)
+    assert created_city is not None
+    assert created_city['name'] == qry.SAMPLE_CITY['name']
+    assert created_city['state_code'] == qry.SAMPLE_CITY['state_code']
+
 
 def test_create_bad_name():
     with pytest.raises(ValueError):
