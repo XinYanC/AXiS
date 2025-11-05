@@ -238,7 +238,6 @@ def test_search_cities_by_name(temp_city):
     pass
 
 
-@pytest.mark.skip('revive once data format in MongoDB is confirmed')
 def test_search_cities_by_name_invalid_input():
     """Test search function with invalid inputs"""
     # Test non-string input
@@ -256,3 +255,50 @@ def test_search_cities_by_name_invalid_input():
     # Test None input
     with pytest.raises(ValueError, match='Search term must be a string'):
         qry.search_cities_by_name(None)
+
+
+def test_create_with_none_name():
+    """Test that create raises ValueError for None name"""
+    with pytest.raises(ValueError, match="City must have a non-empty 'name'"):
+        qry.create({'name': None, 'state_code': 'NY'})
+
+
+def test_create_with_none_state_code():
+    """Test that create raises ValueError for None state_code"""
+    with pytest.raises(ValueError, match="City must have a non-empty 'state_code'"):
+        qry.create({'name': 'Test City', 'state_code': None})
+
+
+def test_delete_by_invalid_id_format():
+    """Test that delete raises ValueError for invalid ObjectId format"""
+    with pytest.raises(ValueError, match='Invalid city ID format'):
+        qry.delete('invalid-id-format')
+
+
+def test_create_multiple_cities_and_count():
+    """Test creating multiple cities and verifying count"""
+    import time
+    timestamp = int(time.time() * 1000)
+    test_cities = [
+        {'name': f'Multi City {timestamp} A', 'state_code': 'MC'},
+        {'name': f'Multi City {timestamp} B', 'state_code': 'MC'},
+        {'name': f'Multi City {timestamp} C', 'state_code': 'MC'},
+    ]
+    
+    initial_count = qry.num_cities()
+    created_cities = []
+    
+    try:
+        for city in test_cities:
+            city_id = qry.create(city)
+            created_cities.append(city)
+        
+        assert qry.num_cities() == initial_count + len(test_cities)
+    finally:
+        # Clean up
+        for city in created_cities:
+            try:
+                qry.delete(city[qry.NAME], city[qry.STATE_CODE])
+            except ValueError:
+                pass
+
