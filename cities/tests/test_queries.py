@@ -332,3 +332,27 @@ def test_read_raises_on_db_connection_error(monkeypatch):
     with pytest.raises(ConnectionError, match='unable to connect'):
         qry.read()
 
+def test_delete_by_id_success_and_not_found(monkeypatch):
+    """Test delete when passed a MongoDB _id string: success and not-found cases."""
+    from bson import ObjectId
+
+    valid_id = str(ObjectId())
+
+    # Success case: dbc.delete returns >=1 -> delete() should return True
+    def fake_delete_success(collection, query):
+        # Verify the query contains a bson ObjectId under the MONGO_ID key
+        assert qry.dbc.MONGO_ID in query
+        assert isinstance(query[qry.dbc.MONGO_ID], ObjectId)
+        return 1
+
+    monkeypatch.setattr(qry.dbc, 'delete', fake_delete_success)
+    assert qry.delete(valid_id) is True
+
+    # Not found case: dbc.delete returns 0 -> delete() should raise ValueError
+    def fake_delete_not_found(collection, query):
+        return 0
+
+    monkeypatch.setattr(qry.dbc, 'delete', fake_delete_not_found)
+    import pytest
+    with pytest.raises(ValueError, match='City not found'):
+        qry.delete(valid_id)
