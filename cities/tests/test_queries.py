@@ -138,7 +138,7 @@ def test_delete_not_there():
         qry.delete('some city name that is not there, not a state')
 
 
-def test_read(temp_city):
+def test_read(temp_city_unique):
     cities = qry.read()
     assert isinstance(cities, list)
     assert get_temp_rec() in cities
@@ -161,9 +161,9 @@ def test_create_missing_state_code_field():
         qry.create({'name': 'City Without State'})
 
 
-def test_is_valid_id(temp_city):
+def test_is_valid_id(temp_city_unique):
     # valid id (from fixture)
-    result = qry.is_valid_id(temp_city)
+    result = qry.is_valid_id(temp_city_unique)
     assert isinstance(result, bool)
     assert result is True
 
@@ -192,9 +192,9 @@ def test_is_valid_id_min_len():
     assert qry.is_valid_id(' ')
 
 
-def test_delete_returns_true_and_removes(temp_city):
+def test_delete_returns_true_and_removes(temp_city_unique):
     # temp_city is the MongoDB _id returned from create
-    assert qry.delete(temp_city)
+    assert qry.delete(temp_city_unique)
     # Verify it's deleted by checking read() doesn't contain it
     # (We can't easily check by ID since read() removes _id by default)
     cities = qry.read()
@@ -202,7 +202,7 @@ def test_delete_returns_true_and_removes(temp_city):
     # So we just verify delete returns True
     pass
 
-def test_read_returns_expected_fields(temp_city):
+def test_read_returns_expected_fields(temp_city_unique):
     cities = qry.read()
     for data in cities:
         assert 'name' in data
