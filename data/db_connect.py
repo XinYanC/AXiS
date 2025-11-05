@@ -6,6 +6,8 @@ import os
 
 import pymongo as pm
 
+from functools import wraps
+
 LOCAL = "0"
 CLOUD = "1"
 
@@ -14,6 +16,16 @@ GEO_DB = 'geo2025DB'
 client = None
 
 MONGO_ID = '_id'
+
+
+def needs_db(fn, *args, **kwargs):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        global client
+        if not client:
+            connect_db()
+        return fn(*args, **kwargs)
+    return wrapper
 
 
 def connect_db():
@@ -48,15 +60,17 @@ def convert_mongo_id(doc: dict):
         doc[MONGO_ID] = str(doc[MONGO_ID])
 
 
+@needs_db
 def create(collection, doc, db=GEO_DB):
     """
     Insert a single doc into collection.
     """
-    print(f'{db=}')
+    print(f'{doc=}')
     ret = client[db][collection].insert_one(doc)
     return str(ret.inserted_id)
 
 
+@needs_db
 def read_one(collection, filt, db=GEO_DB):
     """
     Find with a filter and return on the first doc found.
@@ -67,19 +81,22 @@ def read_one(collection, filt, db=GEO_DB):
         return doc
 
 
+@needs_db
 def delete(collection: str, filt: dict, db=GEO_DB):
     """
-    Find with a filter and return on the first doc found.
+    Find with a filter and return after deleting the first doc found.
     """
     print(f'{filt=}')
     del_result = client[db][collection].delete_one(filt)
     return del_result.deleted_count
 
 
+@needs_db
 def update(collection, filters, update_dict, db=GEO_DB):
     return client[db][collection].update_one(filters, {'$set': update_dict})
 
 
+@needs_db
 def read(collection, db=GEO_DB, no_id=True) -> list:
     """
     Returns a list from the db.
@@ -95,16 +112,12 @@ def read(collection, db=GEO_DB, no_id=True) -> list:
 
 
 def read_dict(collection, key, db=GEO_DB, no_id=True) -> dict:
+    """
+    Doesn't need db decorator because read() has it
+    """
     recs = read(collection, db=db, no_id=no_id)
     recs_as_dict = {}
     for rec in recs:
         recs_as_dict[rec[key]] = rec
     return recs_as_dict
 
-
-def fetch_all_as_dict(key, collection, db=GEO_DB):
-    ret = {}
-    for doc in client[db][collection].find():
-        del doc[MONGO_ID]
-        ret[doc[key]] = doc
-    return ret

@@ -4,6 +4,7 @@ This file deals with our city-level data.
 """
 
 import data.db_connect as dbc
+from bson import ObjectId
 
 MIN_ID_LEN = 1
 
@@ -18,8 +19,6 @@ SAMPLE_CITY = {
     STATE_CODE: 'NY',
 }
 
-city_cache = {}
-
 def is_valid_id(_id: str) -> bool:
     if not isinstance(_id, str):
         return False
@@ -29,7 +28,7 @@ def is_valid_id(_id: str) -> bool:
 
 
 def num_cities() -> int:
-    return len(city_cache)
+    return len(read())
 
 
 def create(city):
@@ -40,23 +39,33 @@ def create(city):
     if 'state_code' not in city or not city['state_code']:
         raise ValueError("City must have a non-empty 'state_code'.")
 
-    import uuid
-    rec_id = uuid.uuid4().hex[: max(8, MIN_ID_LEN)]
-
-    city_cache[rec_id] = city
+    rec_id = dbc.create(CITY_COLLECTION, city)
     return rec_id
 
 
 
-def delete(city_id: str) -> bool:
-    if city_id not in city_cache:
-        raise ValueError(f'No such city: {city_id}')
-    del city_cache[city_id]
-    return True
+def delete(name_or_id: str, state_code: str = None) -> bool:
+    # If only one argument provided, treat it as an ID (MongoDB _id)
+    if state_code is None:
+        # Convert string ID to ObjectId for MongoDB
+        try:
+            obj_id = ObjectId(name_or_id)
+        except Exception:
+            raise ValueError(f'Invalid city ID format: {name_or_id}')
+        ret = dbc.delete(CITY_COLLECTION, {dbc.MONGO_ID: obj_id})
+        if ret < 1:
+            raise ValueError(f'City not found: {name_or_id}')
+        return True
+    
+    # Otherwise, treat as name and state_code and delete from database
+    ret = dbc.delete(CITY_COLLECTION, {NAME: name_or_id, STATE_CODE: state_code})
+    if ret < 1:
+        raise ValueError(f'City not found: {name_or_id}, {state_code}')
+    return ret > 0
 
     
-def read() -> dict:
-    return city_cache
+def read() -> list:
+    return dbc.read(CITY_COLLECTION)
 
 
 def search_cities_by_name(search_term: str) -> dict:
@@ -77,12 +86,16 @@ def search_cities_by_name(search_term: str) -> dict:
     if not search_term.strip():
         raise ValueError('Search term cannot be empty')
     
-    cities = read()
+    # Search in database
     search_lower = search_term.lower().strip()
     matching_cities = {}
     
-    for city_id, city_data in cities.items():
+    db_cities = dbc.read(CITY_COLLECTION)
+    import uuid
+    for city_data in db_cities:
         if search_lower in city_data.get(NAME, '').lower():
+            # Generate a temporary ID for database cities
+            city_id = uuid.uuid4().hex[: max(8, MIN_ID_LEN)]
             matching_cities[city_id] = city_data
     
     return matching_cities
