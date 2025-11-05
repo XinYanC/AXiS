@@ -13,23 +13,15 @@ def get_temp_rec():
     return deepcopy(qry.SAMPLE_CITY)
 
 
-@pytest.fixture(scope='function')
-def temp_city_no_del():
+@pytest.fixture
+def temp_city_unique():
     temp_rec = get_temp_rec()
-    qry.create(temp_rec)
-    return temp_rec
-
-
-@pytest.fixture(scope='function')
-def temp_city():
-    # Create a unique city for each test to avoid duplicate key errors
-    temp_rec = get_temp_rec()
-    new_rec_id = qry.create(temp_rec)
-    yield new_rec_id
+    rec_id = qry.create(temp_rec)
+    yield rec_id, temp_rec
     try:
         qry.delete(temp_rec[qry.NAME], temp_rec[qry.STATE_CODE])
     except ValueError:
-        print('The record was already deleted.')
+        pass
 
 
 @pytest.fixture(scope='function')
@@ -135,8 +127,9 @@ def test_create_bad_param_type():
         qry.create(17)
 
 
-def test_delete(temp_city_no_del):
-    ret = qry.delete(temp_city_no_del[qry.NAME], temp_city_no_del[qry.STATE_CODE])
+def test_delete(temp_city_unique):
+    rec_id, rec = temp_city_unique
+    ret = qry.delete(rec[qry.NAME], rec[qry.STATE_CODE])
     assert ret == 1
 
 
