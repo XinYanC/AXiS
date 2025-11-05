@@ -8,7 +8,6 @@ import cities.queries as qry
 
 from copy import deepcopy
 
-
 def get_temp_rec():
     return deepcopy(qry.SAMPLE_CITY)
 
@@ -116,16 +115,17 @@ def test_good_create():
     # Clean up
     qry.delete(qry.SAMPLE_CITY['name'], qry.SAMPLE_CITY['state_code'])
 
-
-def test_create_bad_name():
+@pytest.mark.parametrize("city_data, match", [
+    ({}, "name"),
+    (17, "Invalid"),
+    ({'state_code': 'NY'}, "name"),
+    ({'name': 'City'}, "state_code"),
+    ({'name': None, 'state_code': 'NY'}, "name"),
+    ({'name': 'Test City', 'state_code': None}, "state_code"),
+])
+def test_create_invalid_inputs(city_data, match):
     with pytest.raises(ValueError):
-        qry.create({})
-
-
-def test_create_bad_param_type():
-    with pytest.raises(ValueError):
-        qry.create(17)
-
+        qry.create(city_data)
 
 def test_delete(temp_city_unique):
     rec_id, rec = temp_city_unique
@@ -148,17 +148,6 @@ def test_read(temp_city_unique):
 def test_read_cant_connect(mock_db_connect):
     with pytest.raises(ConnectionError):
         cities = qry.read()
-
-def test_create_missing_name_field():
-    # Missing 'name' key should raise
-    with pytest.raises(ValueError):
-        qry.create({'state_code': 'NY'})
-
-
-def test_create_missing_state_code_field():
-    # Missing 'state_code' key should raise
-    with pytest.raises(ValueError):
-        qry.create({'name': 'City Without State'})
 
 
 def test_is_valid_id(temp_city_unique):
@@ -248,19 +237,6 @@ def test_search_cities_by_name_invalid_input():
     # Test None input
     with pytest.raises(ValueError, match='Search term must be a string'):
         qry.search_cities_by_name(None)
-
-
-def test_create_with_none_name():
-    """Test that create raises ValueError for None name"""
-    with pytest.raises(ValueError, match="City must have a non-empty 'name'"):
-        qry.create({'name': None, 'state_code': 'NY'})
-
-
-def test_create_with_none_state_code():
-    """Test that create raises ValueError for None state_code"""
-    with pytest.raises(ValueError, match="City must have a non-empty 'state_code'"):
-        qry.create({'name': 'Test City', 'state_code': None})
-
 
 def test_delete_by_invalid_id_format():
     """Test that delete raises ValueError for invalid ObjectId format"""
