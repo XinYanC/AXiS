@@ -302,3 +302,33 @@ def test_create_multiple_cities_and_count():
             except ValueError:
                 pass
 
+
+def test_main_prints_read(monkeypatch, capsys):
+    """Patch qry.read to return a known list and verify main() prints it."""
+    sample = [{'name': 'Printed City', 'state_code': 'PC'}]
+
+    # Patch the module-level read function used by main()
+    monkeypatch.setattr(qry, 'read', lambda: sample)
+
+    # Call main() which should print the returned list
+    qry.main()
+
+    captured = capsys.readouterr()
+    out = captured.out
+
+    # Expect the printed representation to include the city name and state_code
+    assert 'Printed City' in out
+    assert 'PC' in out
+
+
+def test_read_raises_on_db_connection_error(monkeypatch):
+    """Ensure qry.read propagates a ConnectionError from the DB layer."""
+    def raise_conn(collection):
+        raise ConnectionError('unable to connect')
+
+    monkeypatch.setattr(qry.dbc, 'read', raise_conn)
+
+    import pytest
+    with pytest.raises(ConnectionError, match='unable to connect'):
+        qry.read()
+
