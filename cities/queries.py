@@ -19,6 +19,7 @@ SAMPLE_CITY = {
     STATE_CODE: 'NY',
 }
 
+
 def is_valid_id(_id: str) -> bool:
     if not isinstance(_id, str):
         return False
@@ -43,7 +44,6 @@ def create(city):
     return rec_id
 
 
-
 def delete(name_or_id: str, state_code: str = None) -> bool:
     # If only one argument provided, treat it as an ID (MongoDB _id)
     if state_code is None:
@@ -56,14 +56,15 @@ def delete(name_or_id: str, state_code: str = None) -> bool:
         if ret < 1:
             raise ValueError(f'City not found: {name_or_id}')
         return True
-    
     # Otherwise, treat as name and state_code and delete from database
-    ret = dbc.delete(CITY_COLLECTION, {NAME: name_or_id, STATE_CODE: state_code})
+    ret = dbc.delete(
+        CITY_COLLECTION, {NAME: name_or_id, STATE_CODE: state_code}
+    )
     if ret < 1:
         raise ValueError(f'City not found: {name_or_id}, {state_code}')
     return ret > 0
 
-    
+
 def read() -> list:
     return dbc.read(CITY_COLLECTION)
 
@@ -71,25 +72,23 @@ def read() -> list:
 def search_cities_by_name(search_term: str) -> dict:
     """
     Search for cities by name (case-insensitive partial match).
-    
     Args:
         search_term: The term to search for in city names
-        
     Returns:
         dict: Dictionary of cities matching the search term
-        
     Raises:
         ValueError: If search_term is not a string or is empty
     """
+
     if not isinstance(search_term, str):
-        raise ValueError(f'Search term must be a string, got {type(search_term)}')
+        raise ValueError(
+            f'Search term must be a string, got {type(search_term)}'
+        )
     if not search_term.strip():
         raise ValueError('Search term cannot be empty')
-    
     # Search in database
     search_lower = search_term.lower().strip()
     matching_cities = {}
-    
     db_cities = dbc.read(CITY_COLLECTION)
     import uuid
     for city_data in db_cities:
@@ -97,7 +96,6 @@ def search_cities_by_name(search_term: str) -> dict:
             # Generate a temporary ID for database cities
             city_id = uuid.uuid4().hex[: max(8, MIN_ID_LEN)]
             matching_cities[city_id] = city_data
-    
     return matching_cities
 
 

@@ -28,7 +28,11 @@ def is_valid_id(_id: str) -> bool:
     return True
 
 
-def needs_db(fn, *args, **kwargs):
+def needs_db(fn):
+    """
+    Decorator that ensures database connection exists before calling
+    the decorated function. If no connection exists, it will create one.
+    """
     @wraps(fn)
     def wrapper(*args, **kwargs):
         global client
@@ -60,7 +64,8 @@ def connect_db():
                                     + '?retryWrites=true&w=majority')
         else:
             print("Connecting to Mongo locally.")
-            client = pm.MongoClient()
+            # Add connection timeout to fail fast if MongoDB isn't running
+            client = pm.MongoClient(serverSelectionTimeoutMS=2000)
     return client
 
 

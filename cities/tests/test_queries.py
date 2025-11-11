@@ -152,7 +152,8 @@ def test_read_cant_connect(mock_db_connect):
 
 def test_is_valid_id(temp_city_unique):
     # valid id (from fixture)
-    result = qry.is_valid_id(temp_city_unique)
+    rec_id, rec = temp_city_unique
+    result = qry.is_valid_id(rec_id)
     assert isinstance(result, bool)
     assert result is True
 
@@ -183,7 +184,8 @@ def test_is_valid_id_min_len():
 
 def test_delete_returns_true_and_removes(temp_city_unique):
     # temp_city is the MongoDB _id returned from create
-    assert qry.delete(temp_city_unique)
+    rec_id, rec = temp_city_unique
+    assert qry.delete(rec_id)
     # Verify it's deleted by checking read() doesn't contain it
     # (We can't easily check by ID since read() removes _id by default)
     cities = qry.read()
