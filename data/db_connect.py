@@ -17,6 +17,16 @@ client = None
 
 MONGO_ID = '_id'
 
+MIN_ID_LEN = 4
+
+
+def is_valid_id(_id: str) -> bool:
+    if not isinstance(_id, str):
+        return False
+    if len(_id) < MIN_ID_LEN:
+        return False
+    return True
+
 
 def needs_db(fn, *args, **kwargs):
     @wraps(fn)
