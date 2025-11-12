@@ -359,3 +359,20 @@ def test_search_cities_by_name_very_long_string():
     long_string = 'A' * 1000
     results = qry.search_cities_by_name(long_string)
     assert isinstance(results, dict)
+
+def test_search_trimming_and_case_insensitivity():
+    sample_db = [
+        {'name': 'Los Angeles', 'state_code': 'CA'},
+        {'name': 'Los Angeles County', 'state_code': 'CA'},
+        {'name': 'San Diego', 'state_code': 'CA'},
+    ]
+
+    # Patch the database read to return our sample list
+    with patch('cities.queries.dbc.read', return_value=sample_db):
+        # Search with extra whitespace and mixed case
+        results = qry.search_cities_by_name('  los ANgeles  ')
+        assert isinstance(results, dict)
+        names = [c['name'] for c in results.values()]
+        assert 'Los Angeles' in names
+        assert 'Los Angeles County' in names
+        assert 'San Diego' not in names
