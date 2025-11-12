@@ -138,6 +138,20 @@ def test_delete_not_there():
         qry.delete('some city name that is not there, not a state')
 
 
+def test_delete_by_name_success_and_not_found():
+    """Test delete when passed a name and state_code: success and not-found cases."""
+    # Success: dbc.delete returns >=1 -> delete() should return True
+    with patch('cities.queries.dbc.delete', return_value=1) as fake_del:
+        assert qry.delete('Any City', 'AC') is True
+        fake_del.assert_called()
+
+    # Not found: dbc.delete returns 0 -> delete() should raise ValueError
+    with patch('cities.queries.dbc.delete', return_value=0):
+        import pytest as _pytest
+        with _pytest.raises(ValueError, match='City not found'):
+            qry.delete('Any City', 'AC')
+
+
 def test_read(temp_city_unique):
     cities = qry.read()
     assert isinstance(cities, list)
