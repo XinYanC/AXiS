@@ -353,3 +353,9 @@ def test_unicode_and_special_characters_in_names():
                 qry.delete(city_data[qry.NAME], city_data[qry.STATE_CODE])
             except ValueError:
                 pass  # Already deleted
+
+def test_search_cities_by_name_very_long_string():
+    """Test search with very long input string."""
+    long_string = 'A' * 1000
+    results = qry.search_cities_by_name(long_string)
+    assert isinstance(results, dict)
