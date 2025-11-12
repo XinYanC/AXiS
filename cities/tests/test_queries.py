@@ -327,3 +327,29 @@ def test_delete_by_id_success_and_not_found(monkeypatch):
     import pytest
     with pytest.raises(ValueError, match='City not found'):
         qry.delete(valid_id)
+
+def test_unicode_and_special_characters_in_names():
+    """Test cities with unicode and special characters."""
+    test_cases = [
+        {'name': 'San José', 'state_code': 'CA'},
+        {'name': 'München', 'state_code': 'BY'},
+        {'name': 'København', 'state_code': 'DK'},
+    ]
+    
+    created_cities = []
+    
+    try:
+        for city_data in test_cases:
+            city_id = qry.create(city_data)
+            created_cities.append(city_data)
+            
+            # Verify we can search for it
+            results = qry.search_cities_by_name(city_data['name'])
+            assert any(city['name'] == city_data['name'] for city in results.values())
+    finally:
+        # Clean up all created cities
+        for city_data in created_cities:
+            try:
+                qry.delete(city_data[qry.NAME], city_data[qry.STATE_CODE])
+            except ValueError:
+                pass  # Already deleted
