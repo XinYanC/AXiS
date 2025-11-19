@@ -259,6 +259,11 @@ def test_delete_by_invalid_id_format():
     with pytest.raises(ValueError, match='Invalid country ID format'):
         qry.delete('invalid-id-format')
 
+@pytest.mark.parametrize("bad_input", [123, [], {}, ['ABC'], None])
+def test_delete_rejects_non_string(bad_input):
+    with pytest.raises(ValueError):
+        qry.delete(bad_input)
+
 
 def test_create_multiple_countries_and_count():
     """Test creating multiple countries and verifying count"""
@@ -367,6 +372,10 @@ def test_unicode_and_special_characters_in_names():
                 qry.delete(country_data[qry.NAME], country_data[qry.CODE])
             except ValueError:
                 pass  # Already deleted
+
+def test_search_countries_by_name_substring(sample_countries):
+    results = qry.search_countries_by_name('King')
+    assert 'United Kingdom' in [c['name'] for c in results.values()]
 
 def test_search_countries_by_name_very_long_string():
     """Test search with very long input string."""
