@@ -54,6 +54,7 @@ def connect_db():
     if client is None:  # not connected yet!
         print('Setting client because it is None.')
         if os.environ.get('CLOUD_MONGO', LOCAL) == CLOUD:
+            # Cloud MongoDB connection
             password = os.environ.get('MONGO_PASSWD')
             if not password:
                 raise ValueError('You must set your password '
@@ -63,9 +64,37 @@ def connect_db():
                                     + '@koukoumongo1.yud9b.mongodb.net/'
                                     + '?retryWrites=true&w=majority')
         else:
+            # Local MongoDB connection
             print("Connecting to Mongo locally.")
-            # Add connection timeout to fail fast if MongoDB isn't running
-            client = pm.MongoClient(serverSelectionTimeoutMS=2000)
+            # Get MongoDB connection details from environment or use defaults
+            mongo_host = os.environ.get('MONGO_HOST', 'localhost')
+            mongo_port = int(os.environ.get('MONGO_PORT', 27017))
+            
+            # Connection string for local MongoDB
+            connection_string = f'mongodb://{mongo_host}:{mongo_port}/'
+            
+            # Create client with connection timeout to fail fast if MongoDB isn't running
+            client = pm.MongoClient(
+                connection_string,
+                serverSelectionTimeoutMS=5000,  # 5 second timeout
+                connectTimeoutMS=5000
+            )
+            
+            # Test the connection to ensure MongoDB is running
+            try:
+                # This will raise an exception if MongoDB is not accessible
+                client.admin.command('ping')
+                print(f"Successfully connected to MongoDB at {mongo_host}:{mongo_port}")
+            except pm.errors.ServerSelectionTimeoutError:
+                raise ConnectionError(
+                    f'Failed to connect to MongoDB at {mongo_host}:{mongo_port}. '
+                    'Please ensure MongoDB is running locally. '
+                    'You can start it with: mongod (or brew services start mongodb-community on macOS)'
+                )
+            except Exception as e:
+                raise ConnectionError(
+                    f'Error connecting to MongoDB at {mongo_host}:{mongo_port}: {str(e)}'
+                )
     return client
 
 
