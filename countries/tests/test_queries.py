@@ -8,19 +8,22 @@ import countries.queries as qry
 
 from copy import deepcopy
 
+def safe_delete(country):
+    try:
+        qry.delete(country[qry.NAME], country[qry.CODE])
+    except ValueError:
+        pass
+
+
 def get_temp_rec():
     return deepcopy(qry.SAMPLE_COUNTRY)
-
 
 @pytest.fixture
 def temp_country_unique():
     temp_rec = get_temp_rec()
     rec_id = qry.create(temp_rec)
     yield rec_id, temp_rec
-    try:
-        qry.delete(temp_rec[qry.NAME], temp_rec[qry.CODE])
-    except ValueError:
-        pass
+    safe_delete(temp_rec)
 
 
 @pytest.fixture(scope='function')
@@ -43,10 +46,7 @@ def sample_countries():
     finally:
         # Clean up created countries
         for name, code in created_ids:
-            try:
-                qry.delete(name, code)
-            except ValueError:
-                pass  # Already deleted
+            safe_delete({'name': name, 'code': code})
 
 
 def test_search_countries_by_name_with_fixture(sample_countries):
