@@ -55,14 +55,35 @@ def connect_db():
         print('Setting client because it is None.')
         if os.environ.get('CLOUD_MONGO', LOCAL) == CLOUD:
             # Cloud MongoDB connection
+            username = os.environ.get('MONGO_USER')
             password = os.environ.get('MONGO_PASSWD')
+            if not username:
+                raise ValueError('You must set MONGO_USER environment variable '
+                                 + 'to use Mongo in the cloud.')
             if not password:
-                raise ValueError('You must set your password '
+                raise ValueError('You must set MONGO_PASSWD environment variable '
                                  + 'to use Mongo in the cloud.')
             print('Connecting to Mongo in the cloud.')
-            client = pm.MongoClient(f'mongodb+srv://gcallah:{password}'
-                                    + '@koukoumongo1.yud9b.mongodb.net/'
-                                    + '?retryWrites=true&w=majority')
+            client = pm.MongoClient(f'mongodb+srv://{username}:{password}'
+                                    + '@geodb.f4tdnzf.mongodb.net/'
+                                    + '?appName=geodb',
+                                    serverSelectionTimeoutMS=5000,
+                                    connectTimeoutMS=5000)
+            
+            # Test the connection to ensure MongoDB is accessible
+            try:
+                # This will raise an exception if MongoDB is not accessible
+                client.admin.command('ping')
+                print('Successfully connected to MongoDB in the cloud.')
+            except pm.errors.ServerSelectionTimeoutError:
+                raise ConnectionError(
+                    'Failed to connect to MongoDB in the cloud. '
+                    'Please check your credentials and network connection.'
+                )
+            except Exception as e:
+                raise ConnectionError(
+                    f'Error connecting to MongoDB in the cloud: {str(e)}'
+                )
         else:
             # Local MongoDB connection
             print("Connecting to Mongo locally.")

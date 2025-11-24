@@ -58,6 +58,27 @@ Quick steps to run locally:
    python -m server.run
 
 If the Flask endpoint cannot reach MongoDB the server will return an error
-message indicating the DB is not reachable. To use a cloud MongoDB deployment
-set the `CLOUD_MONGO=1` environment variable and the `MONGO_PASSWD` environment
-variable as required by the cloud connection code.
+message indicating the DB is not reachable. 
+
+## Environment Variables
+
+To use a cloud MongoDB deployment, you need to set environment variables:
+
+1. Copy `.env.example` to `.env`:
+   ```zsh
+   cp .env.example .env
+   ```
+
+2. Edit `.env` and fill in your MongoDB credentials:
+   - `MONGO_USER`: Your MongoDB username
+   - `MONGO_PASSWD`: Your MongoDB password
+   - `CLOUD_MONGO`: Set to `1` for cloud MongoDB, `0` for local
+
+3. Load the environment variables (you can add this to your shell profile):
+   ```zsh
+   export $(cat .env | xargs)
+   ```
+
+   Or use a tool like `python-dotenv` to automatically load `.env` files.
+
+**Important**: Never commit your `.env` file to version control! It contains sensitive credentials.
