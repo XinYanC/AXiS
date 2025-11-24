@@ -21,7 +21,7 @@ def test_hello():
     resp_json = resp.get_json()
     assert ep.HELLO_RESP in resp_json
 
-@patch('server.endpoints.cqry.read')
+@patch('server.endpoints.cityqry.read')
 def test_cities_read(mock_read):
     """Test the /cities/read endpoint returns the mocked cities and count."""
     # Arrange: mock the read() call to return a predictable list
