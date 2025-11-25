@@ -4,8 +4,8 @@ We may be required to use a new database at any point.
 """
 import os
 
+import certifi
 import pymongo as pm
-
 from functools import wraps
 
 LOCAL = "0"
@@ -68,7 +68,8 @@ def connect_db():
                                     + '@geodb.f4tdnzf.mongodb.net/'
                                     + '?appName=geodb',
                                     serverSelectionTimeoutMS=5000,
-                                    connectTimeoutMS=5000)
+                                    connectTimeoutMS=5000,
+                                    tlsCAFile=certifi.where())
             
             # Test the connection to ensure MongoDB is accessible
             try:
