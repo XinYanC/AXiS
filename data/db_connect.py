@@ -19,6 +19,9 @@ MONGO_ID = '_id'
 
 MIN_ID_LEN = 4
 
+USERNAME = os.environ.get('MONGO_USER')
+PASSWORD = os.environ.get('MONGO_PASSWD')
+MONGO_TYPE = os.environ.get('CLOUD_MONGO', LOCAL)
 
 def is_valid_id(_id: str) -> bool:
     if not isinstance(_id, str):
@@ -53,18 +56,16 @@ def connect_db():
     global client
     if client is None:  # not connected yet!
         print('Setting client because it is None.')
-        if os.environ.get('CLOUD_MONGO', LOCAL) == CLOUD:
+        if MONGO_TYPE == CLOUD:
             # Cloud MongoDB connection
-            username = os.environ.get('MONGO_USER')
-            password = os.environ.get('MONGO_PASSWD')
-            if not username:
+            if not USERNAME:
                 raise ValueError('You must set MONGO_USER environment variable '
                                  + 'to use Mongo in the cloud.')
-            if not password:
+            if not PASSWORD:
                 raise ValueError('You must set MONGO_PASSWD environment variable '
                                  + 'to use Mongo in the cloud.')
             print('Connecting to Mongo in the cloud.')
-            client = pm.MongoClient(f'mongodb+srv://{username}:{password}'
+            client = pm.MongoClient(f'mongodb+srv://{USERNAME}:{PASSWORD}'
                                     + '@geodb.f4tdnzf.mongodb.net/'
                                     + '?appName=geodb',
                                     serverSelectionTimeoutMS=5000,
