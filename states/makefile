@@ -1,2 +1,2 @@
-PKG = cities
+PKG = states
 include ../common.mk
