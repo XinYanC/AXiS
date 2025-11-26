@@ -399,3 +399,15 @@ def test_search_trimming_and_case_insensitivity():
         assert 'United States' in names
         assert 'United Kingdom' not in names
         assert 'United Arab Emirates' not in names
+
+def test_create_rejects_whitespace_fields():
+    """Country name or code that is only whitespace should be rejected."""
+    bad_inputs = [
+        {'name': '   ', 'code': 'US'},
+        {'name': 'Testland', 'code': '   '},
+        {'name': '   ', 'code': '   '}
+    ]
+
+    for data in bad_inputs:
+        with pytest.raises(ValueError):
+            qry.create(data)
