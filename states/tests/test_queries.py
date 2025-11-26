@@ -327,3 +327,30 @@ def test_delete_by_id_success_and_not_found(monkeypatch):
     import pytest
     with pytest.raises(ValueError, match='State not found'):
         qry.delete(valid_id)
+
+def test_create_strips_and_normalizes_inputs():
+    """Ensure create() normalizes name/code fields before storing."""
+    raw_state = {
+        "name": "   new   york   ",
+        "code": "   ny   "
+    }
+
+    rec_id = qry.create(raw_state)
+    assert qry.is_valid_id(rec_id)
+
+    # Read all states and locate the created record
+    states = qry.read()
+    cleaned = None
+    for s in states:
+        if s.get("code") == "NY":       # assuming normalization uppercases codes
+            cleaned = s
+            break
+
+    assert cleaned is not None, "Normalized state was not found in DB."
+
+    # Check normalization expectations
+    assert cleaned["name"] == "New York" or cleaned["name"] == "new york"
+    assert cleaned["code"] == "NY"
+
+    # Clean up
+    qry.delete(cleaned["name"], cleaned["code"])
