@@ -11,7 +11,7 @@ from functools import wraps
 LOCAL = "0"
 CLOUD = "1"
 
-GEO_DB = 'geo2025DB'
+GEO_DB = 'geodb'
 
 client = None
 
