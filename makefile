@@ -1,10 +1,11 @@
 include common.mk
 
 # Our directories
-API_DIR = server
+CITIES_DIR = cities
 DB_DIR = data
-SEC_DIR = security
 REQ_DIR = .
+SEC_DIR = security
+API_DIR = server
 
 FORCE:
 
@@ -23,6 +24,9 @@ dev_env: FORCE
 	pip install -r $(REQ_DIR)/requirements-dev.txt
 	@echo "You should set PYTHONPATH to: "
 	@echo $(shell pwd)
+
+prod_env: FORCE
+	pip install -r $(REQ_DIR)/requirements.txt
 
 docs: FORCE
 	cd $(API_DIR); make docs
