@@ -51,15 +51,22 @@ Quick steps to run locally:
 
    brew services start mongodb-community
 
+   or run `brew services start mongodb/brew/mongodb-community`
+
    Or run `mongod` directly if you have a standalone install.
 
-4. Run the API server from the repository root:
+4. Go to `local.sh` and uncomment login and set CLOUD_MONGO=1
 
-   python -m server.run
+5. Run the API server from the repository root:
 
-5. To stop the mongo serviice:
+   PYTHONPATH=$(pwd):$PYTHONPATH
+   FLASK_APP=server.endpoints flask run --debug --host=127.0.0.1 --port=8000
+
+6. To stop the mongo serviice:
 
    brew services stop mongodb-community
+
+7. Go to `local.sh` and comment login and set CLOUD_MONGO=0
 
 If the Flask endpoint cannot reach MongoDB the server will return an error
 message indicating the DB is not reachable.
@@ -77,3 +84,7 @@ To use a cloud MongoDB deployment, you need to set environment variables:
 2. Run `./local.sh` and try executing a read.
 
 **Important**: Do not push your username and password to GitHub. Only modify it locally.
+
+**TroubleShooting**
+
+If you see a `FormulaUnavailableError: No available formula with the name "formula.jws.json".` error when trying to `brew install mongodb-community`, you can try running `brew reinstall llvm`. I also updated my MacOS and XCode. It should allow you to install mongodb-community after.
