@@ -1,0 +1,22 @@
+[
+  {"name": "New York", "code": "NY", "country_code": "US", "population": 20201249},
+  {"name": "California", "code": "CA", "country_code": "US", "population": 39538223},
+  {"name": "Texas", "code": "TX", "country_code": "US", "population": 29145505},
+  {"name": "Florida", "code": "FL", "country_code": "US", "population": 21538187},
+  {"name": "Pennsylvania", "code": "PA", "country_code": "US", "population": 13002700},
+  {"name": "Illinois", "code": "IL", "country_code": "US", "population": 12812508},
+  {"name": "Ohio", "code": "OH", "country_code": "US", "population": 11799448},
+  {"name": "Georgia", "code": "GA", "country_code": "US", "population": 10711908},
+  {"name": "North Carolina", "code": "NC", "country_code": "US", "population": 10439388},
+  {"name": "Michigan", "code": "MI", "country_code": "US", "population": 10077331},
+  {"name": "Ontario", "code": "ON", "country_code": "CA", "population": 14734014},
+  {"name": "Quebec", "code": "QC", "country_code": "CA", "population": 8541035},
+  {"name": "British Columbia", "code": "BC", "country_code": "CA", "population": 5147712},
+  {"name": "Alberta", "code": "AB", "country_code": "CA", "population": 4413146},
+  {"name": "New South Wales", "code": "NSW", "country_code": "AU", "population": 8166369},
+  {"name": "Victoria", "code": "VIC", "country_code": "AU", "population": 6680648},
+  {"name": "Queensland", "code": "QLD", "country_code": "AU", "population": 5184847},
+  {"name": "Maharashtra", "code": "MH", "country_code": "IN", "population": 123144223},
+  {"name": "Delhi", "code": "DL", "country_code": "IN", "population": 16787941},
+  {"name": "Ciudad de México", "code": "CMX", "country_code": "MX", "population": 9209944}
+]

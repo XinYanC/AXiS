@@ -1,0 +1,22 @@
+[
+  {"name": "United States", "code": "US", "iso3": "USA", "population": 331893745},
+  {"name": "Canada", "code": "CA", "iso3": "CAN", "population": 38008005},
+  {"name": "Mexico", "code": "MX", "iso3": "MEX", "population": 128649565},
+  {"name": "United Kingdom", "code": "UK", "iso3": "GBR", "population": 67215293},
+  {"name": "France", "code": "FR", "iso3": "FRA", "population": 65273511},
+  {"name": "Germany", "code": "DE", "iso3": "DEU", "population": 83783945},
+  {"name": "Spain", "code": "ES", "iso3": "ESP", "population": 46754778},
+  {"name": "Italy", "code": "IT", "iso3": "ITA", "population": 59554023},
+  {"name": "Australia", "code": "AU", "iso3": "AUS", "population": 25687041},
+  {"name": "India", "code": "IN", "iso3": "IND", "population": 1407563841},
+  {"name": "China", "code": "CN", "iso3": "CHN", "population": 1411778724},
+  {"name": "Japan", "code": "JP", "iso3": "JPN", "population": 125960000},
+  {"name": "Brazil", "code": "BR", "iso3": "BRA", "population": 213993437},
+  {"name": "South Africa", "code": "ZA", "iso3": "ZAF", "population": 60221400},
+  {"name": "United Arab Emirates", "code": "UAE", "iso3": "ARE", "population": 9890400},
+  {"name": "Netherlands", "code": "NL", "iso3": "NLD", "population": 17441139},
+  {"name": "Sweden", "code": "SE", "iso3": "SWE", "population": 10327589},
+  {"name": "Norway", "code": "NO", "iso3": "NOR", "population": 5421241},
+  {"name": "Argentina", "code": "AR", "iso3": "ARG", "population": 45195777},
+  {"name": "Egypt", "code": "EG", "iso3": "EGY", "population": 104124440}
+]

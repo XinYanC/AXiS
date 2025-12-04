@@ -1,0 +1,22 @@
+[
+  {"name": "New York", "state_code": "NY", "country": "United States", "population": 8419600, "lat": 40.7128, "lon": -74.0060},
+  {"name": "Los Angeles", "state_code": "CA", "country": "United States", "population": 3980400, "lat": 34.0522, "lon": -118.2437},
+  {"name": "Chicago", "state_code": "IL", "country": "United States", "population": 2716000, "lat": 41.8781, "lon": -87.6298},
+  {"name": "Houston", "state_code": "TX", "country": "United States", "population": 2328000, "lat": 29.7604, "lon": -95.3698},
+  {"name": "Phoenix", "state_code": "AZ", "country": "United States", "population": 1681000, "lat": 33.4484, "lon": -112.0740},
+  {"name": "Philadelphia", "state_code": "PA", "country": "United States", "population": 1584200, "lat": 39.9526, "lon": -75.1652},
+  {"name": "San Antonio", "state_code": "TX", "country": "United States", "population": 1547200, "lat": 29.4241, "lon": -98.4936},
+  {"name": "San Diego", "state_code": "CA", "country": "United States", "population": 1423800, "lat": 32.7157, "lon": -117.1611},
+  {"name": "Dallas", "state_code": "TX", "country": "United States", "population": 1341000, "lat": 32.7767, "lon": -96.7970},
+  {"name": "San Jose", "state_code": "CA", "country": "United States", "population": 1027000, "lat": 37.3382, "lon": -121.8863},
+  {"name": "London", "state_code": "LN", "country": "United Kingdom", "population": 8982000, "lat": 51.5074, "lon": -0.1278},
+  {"name": "Toronto", "state_code": "ON", "country": "Canada", "population": 2930000, "lat": 43.6532, "lon": -79.3832},
+  {"name": "Mexico City", "state_code": "CMX", "country": "Mexico", "population": 9209944, "lat": 19.4326, "lon": -99.1332},
+  {"name": "Mumbai", "state_code": "MH", "country": "India", "population": 12442373, "lat": 19.0760, "lon": 72.8777},
+  {"name": "Sydney", "state_code": "NSW", "country": "Australia", "population": 5312163, "lat": -33.8688, "lon": 151.2093},
+  {"name": "Paris", "state_code": "IDF", "country": "France", "population": 2161000, "lat": 48.8566, "lon": 2.3522},
+  {"name": "Berlin", "state_code": "BE", "country": "Germany", "population": 3769000, "lat": 52.5200, "lon": 13.4050},
+  {"name": "Barcelona", "state_code": "CT", "country": "Spain", "population": 1620343, "lat": 41.3851, "lon": 2.1734},
+  {"name": "Buenos Aires", "state_code": "C", "country": "Argentina", "population": 2890151, "lat": -34.6037, "lon": -58.3816},
+  {"name": "Cairo", "state_code": "C", "country": "Egypt", "population": 10230350, "lat": 30.0444, "lon": 31.2357}
+]
