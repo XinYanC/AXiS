@@ -8,6 +8,8 @@ Like:
     python data/load_seed.py --file data/seeds/countries.json --collection countries --drop
     python data/load_seed.py --file data/seeds/states.json --collection states --drop
     python data/load_seed.py --file data/seeds/cities.json --collection cities --drop
+To load to cloud:
+    CLOUD_MONGO=1 MONGO_USER='youruser' MONGO_PASSWD='yourpass' python data/load_seed.py --file data/seeds/countries.json --collection countries --drop
 
 To confirm count after loading:
     python - <<PY
