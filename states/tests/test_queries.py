@@ -97,3 +97,14 @@ def test_read(temp_state):
     states = qry.read()
     assert isinstance(states, dict)
     assert qry.SAMPLE_KEY in states
+
+def test_create_missing_fields():
+    bad = {qry.CODE: "NY"}  # missing COUNTRY_CODE
+    with pytest.raises(ValueError):
+        qry.create(bad)
+
+def test_read_after_delete(temp_state):
+    rec, rec_id = temp_state
+    qry.delete(rec[qry.CODE], rec[qry.COUNTRY_CODE])
+    states = qry.read()
+    assert rec[qry.CODE] not in states
