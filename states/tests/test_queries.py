@@ -108,3 +108,12 @@ def test_read_after_delete(temp_state):
     qry.delete(rec[qry.CODE], rec[qry.COUNTRY_CODE])
     states = qry.read()
     assert rec[qry.CODE] not in states
+
+def test_create_returns_unique_ids():
+    rec1 = get_temp_rec()
+    rec2 = get_temp_rec()
+
+    id1 = qry.create(rec1)
+    id2 = qry.create(rec2)
+
+    assert id1 != id2
