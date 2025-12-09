@@ -52,7 +52,7 @@ def create(flds: dict, reload=True) -> str:
         raise ValueError(f'Bad value for {code=}')
     if not country_code:
         raise ValueError(f'Bad value for {country_code=}')
-    if (code, country_code) in cache:
+    if f'{code},{country_code}' in cache:
         raise ValueError(f'Duplicate key: {code=}; {country_code=}')
     new_id = dbc.create(STATE_COLLECTION, flds)
     print(f'{new_id=}')
@@ -74,15 +74,40 @@ def read() -> dict:
     return cache
 
 
+@needs_cache
+def search_states_by_name(search_term: str) -> dict:
+    """
+    Search for states by name (case-insensitive partial match).
+    Args:
+        search_term: The term to search for in state names
+    Returns:
+        dict: Dictionary of states matching the search term
+    Raises:
+        ValueError: If search_term is not a string or is empty
+    """
+    if not isinstance(search_term, str):
+        raise ValueError(
+            f'Search term must be a string, got {type(search_term)}'
+        )
+    if not search_term.strip():
+        raise ValueError('Search term cannot be empty')
+    
+    # Search in cache
+    search_lower = search_term.lower().strip()
+    matching_states = {}
+    for key, state_data in cache.items():
+        if search_lower in state_data.get(NAME, '').lower():
+            matching_states[key] = state_data
+    return matching_states
+
+
 def load_cache():
     global cache
     cache = {}
     states = dbc.read(STATE_COLLECTION)
     for state in states:
-        # Use (CODE, COUNTRY_CODE) as key, handling missing country_code
-        code = state.get(CODE, '')
-        country_code = state.get(COUNTRY_CODE, '')
-        cache[(code, country_code)] = state
+        key = f'{state[CODE]},{state[COUNTRY_CODE]}' # since json can't use tuple as key, use comma-delimited string as key instead
+        cache[key] = state
 
 
 def main():
