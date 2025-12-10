@@ -5,7 +5,7 @@ export PROJ_DIR=$PWD
 export DEBUG=1
 
 # Use local MongoDB (set CLOUD_MONGO=1 to use cloud MongoDB)
-export CLOUD_MONGO=0
+export CLOUD_MONGO=1
 # UNCOMMENT AND EDIT THIS WHILE TESTING LOCALLY
 # export MONGO_USER=
 # export MONGO_PASSWD=
