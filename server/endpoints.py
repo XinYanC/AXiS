@@ -255,7 +255,7 @@ class StatesCount(Resource):
         Returns the total number of states in the database.
         """
         try:
-            count = stateqry.count()
+            count = stateqry.num_states()
             return {
                 'count': count,
                 STATE_RESP: f'Total states: {count}',

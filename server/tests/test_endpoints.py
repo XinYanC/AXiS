@@ -137,7 +137,7 @@ def test_states_search(mock_search):
     assert resp_json['search_term'] == 'york'
 
 
-@patch('server.endpoints.stateqry.count')
+@patch('server.endpoints.stateqry.num_states')
 def test_states_count(mock_count):
     """Test the /states/count endpoint."""
     mock_count.return_value = 50

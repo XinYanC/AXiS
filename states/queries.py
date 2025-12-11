@@ -16,7 +16,7 @@ COUNTRY_CODE = 'country_code'
 
 SAMPLE_CODE = 'NY'
 SAMPLE_COUNTRY = 'USA'
-SAMPLE_KEY = (SAMPLE_CODE, SAMPLE_COUNTRY)
+SAMPLE_KEY = f'{SAMPLE_CODE},{SAMPLE_COUNTRY}'
 SAMPLE_STATE = {
     NAME: 'New York',
     CODE: SAMPLE_CODE,
@@ -35,8 +35,17 @@ def needs_cache(fn, *args, **kwargs):
     return wrapper
 
 
+def load_cache():
+    global cache
+    cache = {}
+    states = dbc.read(STATE_COLLECTION)
+    for state in states:
+        key = f'{state[CODE]},{state[COUNTRY_CODE]}' # since json can't use tuple as key, use comma-delimited string as key instead
+        cache[key] = state
+
+
 @needs_cache
-def count() -> int:
+def num_states() -> int:
     return len(cache)
 
 
@@ -99,15 +108,6 @@ def search_states_by_name(search_term: str) -> dict:
         if search_lower in state_data.get(NAME, '').lower():
             matching_states[key] = state_data
     return matching_states
-
-
-def load_cache():
-    global cache
-    cache = {}
-    states = dbc.read(STATE_COLLECTION)
-    for state in states:
-        key = f'{state[CODE]},{state[COUNTRY_CODE]}' # since json can't use tuple as key, use comma-delimited string as key instead
-        cache[key] = state
 
 
 def main():

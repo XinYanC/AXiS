@@ -23,6 +23,7 @@ USERNAME = os.environ.get('MONGO_USER')
 PASSWORD = os.environ.get('MONGO_PASSWD')
 MONGO_TYPE = os.environ.get('CLOUD_MONGO', LOCAL)
 
+
 def is_valid_id(_id: str) -> bool:
     if not isinstance(_id, str):
         return False
@@ -38,7 +39,6 @@ def needs_db(fn):
     """
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        global client
         if not client:
             connect_db()
         return fn(*args, **kwargs)

@@ -35,6 +35,13 @@ def sample_cities():
         {'name': 'New Orleans', 'state_code': 'LA'},
     ]
     created_ids = []
+    # Clean up any existing cities first
+    for city in cities_to_create:
+        try:
+            qry.delete(city[qry.NAME], city[qry.STATE_CODE])
+        except ValueError:
+            pass  # Doesn't exist, which is fine
+    # Now create the cities
     for city in cities_to_create:
         city_id = qry.create(city)
         created_ids.append((city[qry.NAME], city[qry.STATE_CODE]))
@@ -102,13 +109,9 @@ def test_good_create():
 
     # city data should be stored correctly in database
     cities = qry.read()
-    created_city = None
-    for city in cities:
-        # Check if this city matches our sample city
-        if city.get('name') == qry.SAMPLE_CITY['name'] and city.get('state_code') == qry.SAMPLE_CITY['state_code']:
-            created_city = city
-            break
-    assert created_city is not None
+    city_key = f'{qry.SAMPLE_CITY[qry.NAME]},{qry.SAMPLE_CITY[qry.STATE_CODE]}'
+    assert city_key in cities
+    created_city = cities[city_key]
     assert created_city['name'] == qry.SAMPLE_CITY['name']
     assert created_city['state_code'] == qry.SAMPLE_CITY['state_code']
     
@@ -154,8 +157,8 @@ def test_delete_by_name_success_and_not_found():
 
 def test_read(temp_city_unique):
     cities = qry.read()
-    assert isinstance(cities, list)
-    assert get_temp_rec() in cities
+    assert isinstance(cities, dict)
+    assert qry.SAMPLE_KEY in cities
 
 
 @pytest.mark.skip('revive once all functions are cutover!')
@@ -209,7 +212,7 @@ def test_delete_returns_true_and_removes(temp_city_unique):
 
 def test_read_returns_expected_fields(temp_city_unique):
     cities = qry.read()
-    for data in cities:
+    for data in cities.values():
         assert 'name' in data
         assert 'state_code' in data
 
@@ -308,6 +311,7 @@ def test_main_prints_read(monkeypatch, capsys):
 
 def test_read_raises_on_db_connection_error(monkeypatch):
     """Ensure qry.read propagates a ConnectionError from the DB layer."""
+    qry.clear_cache()  # Clear cache so it will try to reload
     def raise_conn(collection):
         raise ConnectionError('unable to connect')
 
@@ -381,7 +385,8 @@ def test_search_trimming_and_case_insensitivity():
         {'name': 'San Diego', 'state_code': 'CA'},
     ]
 
-    # Patch the database read to return our sample list
+    # Clear cache and patch the database read to return our sample list
+    qry.clear_cache()
     with patch('cities.queries.dbc.read', return_value=sample_db):
         # Search with extra whitespace and mixed case
         results = qry.search_cities_by_name('  los ANgeles  ')

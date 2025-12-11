@@ -2,6 +2,7 @@
 """
 This file deals with our country-level data.
 """
+from functools import wraps
 
 import data.db_connect as dbc
 from bson import ObjectId
@@ -15,9 +16,36 @@ NAME = 'name'
 CODE = 'code'
 
 SAMPLE_COUNTRY = {
-    NAME: 'United States',
-    CODE: 'US',
+    NAME: 'France',
+    CODE: 'FR',
 }
+SAMPLE_KEY = SAMPLE_COUNTRY[CODE]
+
+cache = None
+
+
+def needs_cache(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not cache:
+            load_cache()
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def load_cache():
+    global cache
+    cache = {}
+    countries = dbc.read(COUNTRY_COLLECTION)
+    for country in countries:
+        key = country[CODE]  # use country code as key
+        cache[key] = country
+
+
+def clear_cache():
+    """Clear the cache. Useful for testing."""
+    global cache
+    cache = None
 
 
 def is_valid_id(_id: str) -> bool:
@@ -28,19 +56,27 @@ def is_valid_id(_id: str) -> bool:
     return True
 
 
+@needs_cache
 def num_countries() -> int:
-    return len(read())
+    return len(cache)
 
 
-def create(country):
+@needs_cache
+def create(country, reload=True):
     if not isinstance(country, dict):
         raise ValueError("Country must be a dictionary.")
-    if 'name' not in country or not country['name']:
+    if 'name' not in country or not country['name'] or not country['name'].strip():
         raise ValueError("Country must have a non-empty 'name'.")
-    if 'code' not in country or not country['code']:
+    if 'code' not in country or not country['code'] or not country['code'].strip():
         raise ValueError("Country must have a non-empty 'code'.")
+    
+    code = country.get(CODE)
+    if code in cache:
+        raise ValueError(f'Duplicate key: {code=}')
 
     rec_id = dbc.create(COUNTRY_COLLECTION, country)
+    if reload:
+        load_cache()
     return rec_id
 
 
@@ -55,20 +91,24 @@ def delete(name_or_id: str, code: str = None) -> bool:
         ret = dbc.delete(COUNTRY_COLLECTION, {dbc.MONGO_ID: obj_id})
         if ret < 1:
             raise ValueError(f'Country not found: {name_or_id}')
-        return True
-    # Otherwise, treat as name and code and delete from database
-    ret = dbc.delete(
-        COUNTRY_COLLECTION, {NAME: name_or_id, CODE: code}
-    )
-    if ret < 1:
-        raise ValueError(f'Country not found: {name_or_id}, {code}')
+    else:
+        # Otherwise, treat as name and code and delete from database
+        ret = dbc.delete(
+            COUNTRY_COLLECTION, {NAME: name_or_id, CODE: code}
+        )
+        if ret < 1:
+            raise ValueError(f'Country not found: {name_or_id}, {code}')
+    
+    load_cache()
     return ret > 0
 
 
-def read() -> list:
-    return dbc.read(COUNTRY_COLLECTION)
+@needs_cache
+def read() -> dict:
+    return cache
 
 
+@needs_cache
 def search_countries_by_name(search_term: str) -> dict:
     """
     Search for countries by name (case-insensitive partial match).
@@ -86,16 +126,13 @@ def search_countries_by_name(search_term: str) -> dict:
         )
     if not search_term.strip():
         raise ValueError('Search term cannot be empty')
-    # Search in database
+    
+    # Search in cache
     search_lower = search_term.lower().strip()
     matching_countries = {}
-    db_countries = dbc.read(COUNTRY_COLLECTION)
-    import uuid
-    for country_data in db_countries:
+    for key, country_data in cache.items():
         if search_lower in country_data.get(NAME, '').lower():
-            # Generate a temporary ID for database countries
-            country_id = uuid.uuid4().hex[: max(8, MIN_ID_LEN)]
-            matching_countries[country_id] = country_data
+            matching_countries[key] = country_data
     return matching_countries
 
 

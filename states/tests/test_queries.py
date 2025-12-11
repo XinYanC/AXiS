@@ -30,7 +30,7 @@ def temp_state():
 
 @pytest.mark.skip('This is an example of a bad test!')
 def test_bad_test_for_count():
-    assert qry.count() == len(qry.cache)
+    assert qry.num_states() == len(qry.cache)
 
 
 def test_count():
@@ -40,10 +40,10 @@ def test_count():
     except ValueError:
         pass  # State doesn't exist, which is fine
     # get the count
-    old_count = qry.count()
+    old_count = qry.num_states()
     # add a record
     qry.create(get_temp_rec())
-    assert qry.count() == old_count + 1
+    assert qry.num_states() == old_count + 1
     qry.delete(qry.SAMPLE_CODE, qry.SAMPLE_COUNTRY)
 
 
@@ -53,10 +53,10 @@ def test_good_create():
         qry.delete(qry.SAMPLE_CODE, qry.SAMPLE_COUNTRY)
     except ValueError:
         pass  # State doesn't exist, which is fine
-    old_count = qry.count()
+    old_count = qry.num_states()
     new_rec_id = qry.create(get_temp_rec())
     assert qry.is_valid_id(new_rec_id)
-    assert qry.count() == old_count + 1
+    assert qry.num_states() == old_count + 1
     qry.delete(qry.SAMPLE_CODE, qry.SAMPLE_COUNTRY)
 
 
@@ -104,16 +104,45 @@ def test_create_missing_fields():
         qry.create(bad)
 
 def test_read_after_delete(temp_state):
-    rec, rec_id = temp_state
-    qry.delete(rec[qry.CODE], rec[qry.COUNTRY_CODE])
+    rec_id = temp_state
+    temp_rec = get_temp_rec()
+    qry.delete(temp_rec[qry.CODE], temp_rec[qry.COUNTRY_CODE])
     states = qry.read()
-    assert rec[qry.CODE] not in states
+    key = f'{temp_rec[qry.CODE]},{temp_rec[qry.COUNTRY_CODE]}'
+    assert key not in states
 
 def test_create_returns_unique_ids():
+    # Clean up any existing states first
+    try:
+        qry.delete(qry.SAMPLE_CODE, qry.SAMPLE_COUNTRY)
+    except ValueError:
+        pass  # Doesn't exist, which is fine
+    try:
+        qry.delete('CA', 'USA')
+    except ValueError:
+        pass  # Doesn't exist, which is fine
+    
+    rec1 = get_temp_rec()
+    # Create first state
+    id1 = qry.create(rec1)
+    # Try to create the same state again - should fail due to duplicate key
+    with pytest.raises(ValueError, match='Duplicate key'):
+        qry.create(rec1)
+    
+    # Clean up
+    qry.delete(qry.SAMPLE_CODE, qry.SAMPLE_COUNTRY)
+    
+    # Now create two different states to verify unique IDs
     rec1 = get_temp_rec()
     rec2 = get_temp_rec()
-
+    rec2[qry.CODE] = 'CA'  # Different code
+    rec2[qry.NAME] = 'California'
+    
     id1 = qry.create(rec1)
     id2 = qry.create(rec2)
-
+    
     assert id1 != id2
+    
+    # Clean up
+    qry.delete(rec1[qry.CODE], rec1[qry.COUNTRY_CODE])
+    qry.delete(rec2[qry.CODE], rec2[qry.COUNTRY_CODE])
