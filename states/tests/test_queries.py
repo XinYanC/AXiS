@@ -146,3 +146,14 @@ def test_create_returns_unique_ids():
     # Clean up
     qry.delete(rec1[qry.CODE], rec1[qry.COUNTRY_CODE])
     qry.delete(rec2[qry.CODE], rec2[qry.COUNTRY_CODE])
+
+def test_delete_then_delete_again(temp_state_no_del):
+    """Ensure deleting a state twice raises ValueError the second time."""
+    code = temp_state_no_del[qry.CODE]
+    country = temp_state_no_del[qry.COUNTRY_CODE]
+    # First delete should work
+    ret = qry.delete(code, country)
+    assert ret == 1
+    # Second delete should raise ValueError
+    with pytest.raises(ValueError):
+        qry.delete(code, country)
