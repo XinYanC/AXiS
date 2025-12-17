@@ -19,7 +19,7 @@ lint: $(patsubst %.py,%.pylint,$(PYTHONFILES))
 	$(LINTER) $(PYLINTFLAGS) $*.py
 
 pytests: FORCE
-	pytest $(PYTESTFLAGS) --cov=$(PKG)
+	PYTHONPATH=.. pytest $(PYTESTFLAGS) --cov=$(PKG)
 
 # test a python file:
 %.py: FORCE

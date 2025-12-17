@@ -38,7 +38,8 @@ def load_cache():
     cache = {}
     cities = dbc.read(CITY_COLLECTION)
     for city in cities:
-        key = f'{city[NAME]},{city[STATE_CODE]}'  # since json can't use tuple as key, use comma-delimited string as key instead
+        # since json can't use tuple as key, use comma-delimited string
+        key = f'{city[NAME]},{city[STATE_CODE]}'
         cache[key] = city
 
 
@@ -69,7 +70,7 @@ def create(city, reload=True):
         raise ValueError("City must have a non-empty 'name'.")
     if STATE_CODE not in city or not city[STATE_CODE]:
         raise ValueError("City must have a non-empty 'state_code'.")
-    
+
     name = city.get(NAME)
     state_code = city.get(STATE_CODE)
     if f'{name},{state_code}' in cache:
@@ -99,7 +100,7 @@ def delete(name_or_id: str, state_code: str = None) -> bool:
         )
         if ret < 1:
             raise ValueError(f'City not found: {name_or_id}, {state_code}')
-    
+
     load_cache()
     return ret > 0
 
@@ -127,7 +128,7 @@ def search_cities_by_name(search_term: str) -> dict:
         )
     if not search_term.strip():
         raise ValueError('Search term cannot be empty')
-    
+
     # Search in cache
     search_lower = search_term.lower().strip()
     matching_cities = {}

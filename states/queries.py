@@ -40,7 +40,8 @@ def load_cache():
     cache = {}
     states = dbc.read(STATE_COLLECTION)
     for state in states:
-        key = f'{state[CODE]},{state[COUNTRY_CODE]}' # since json can't use tuple as key, use comma-delimited string as key instead
+        # since json can't use tuple as key, use comma-delimited string
+        key = f'{state[CODE]},{state[COUNTRY_CODE]}'
         cache[key] = state
 
 
@@ -100,7 +101,7 @@ def search_states_by_name(search_term: str) -> dict:
         )
     if not search_term.strip():
         raise ValueError('Search term cannot be empty')
-    
+
     # Search in cache
     search_lower = search_term.lower().strip()
     matching_states = {}

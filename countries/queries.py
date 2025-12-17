@@ -65,11 +65,13 @@ def num_countries() -> int:
 def create(country, reload=True):
     if not isinstance(country, dict):
         raise ValueError("Country must be a dictionary.")
-    if 'name' not in country or not country['name'] or not country['name'].strip():
+    if ('name' not in country or not country['name'] or
+            not country['name'].strip()):
         raise ValueError("Country must have a non-empty 'name'.")
-    if 'code' not in country or not country['code'] or not country['code'].strip():
+    if ('code' not in country or not country['code'] or
+            not country['code'].strip()):
         raise ValueError("Country must have a non-empty 'code'.")
-    
+
     code = country.get(CODE)
     if code in cache:
         raise ValueError(f'Duplicate key: {code=}')
@@ -98,7 +100,7 @@ def delete(name_or_id: str, code: str = None) -> bool:
         )
         if ret < 1:
             raise ValueError(f'Country not found: {name_or_id}, {code}')
-    
+
     load_cache()
     return ret > 0
 
@@ -126,7 +128,7 @@ def search_countries_by_name(search_term: str) -> dict:
         )
     if not search_term.strip():
         raise ValueError('Search term cannot be empty')
-    
+
     # Search in cache
     search_lower = search_term.lower().strip()
     matching_countries = {}

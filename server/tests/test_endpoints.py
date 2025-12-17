@@ -86,6 +86,28 @@ def test_cities_count(mock_count):
     assert resp_json['count'] == 42
 
 
+@patch('server.endpoints.countryqry.read')
+def test_countries_read(mock_read):
+    """Test the /countries/read endpoint returns the mocked countries and count."""
+    # Arrange: mock the read() call to return a predictable dict
+    mock_data = {
+        "USA": {"name": "United States", "code": "USA"},
+        "FRA": {"name": "France", "code": "FRA"},
+        "GBR": {"name": "United Kingdom", "code": "GBR"},
+    }
+    mock_read.return_value = mock_data
+
+    # Act
+    resp = TEST_CLIENT.get(f"{ep.COUNTRIES_EPS}/{ep.READ}")
+    resp_json = resp.get_json()
+
+    # Assert
+    assert resp.status_code == OK
+    assert ep.COUNTRY_RESP in resp_json
+    assert resp_json[ep.COUNTRY_RESP] == mock_data
+    assert resp_json[ep.NUM_RECS] == len(mock_data)
+
+
 @patch('server.endpoints.countryqry.search_countries_by_name')
 def test_countries_search(mock_search):
     """Test the /countries/search endpoint."""
@@ -114,6 +136,28 @@ def test_countries_count(mock_count):
     resp_json = resp.get_json()
     assert resp.status_code == OK
     assert resp_json['count'] == 10
+
+
+@patch('server.endpoints.stateqry.read')
+def test_states_read(mock_read):
+    """Test the /states/read endpoint returns the mocked states and count."""
+    # Arrange: mock the read() call to return a predictable dict
+    mock_data = {
+        "NY,USA": {"name": "New York", "code": "NY", "country_code": "USA"},
+        "CA,USA": {"name": "California", "code": "CA", "country_code": "USA"},
+        "TX,USA": {"name": "Texas", "code": "TX", "country_code": "USA"},
+    }
+    mock_read.return_value = mock_data
+
+    # Act
+    resp = TEST_CLIENT.get(f"{ep.STATES_EPS}/{ep.READ}")
+    resp_json = resp.get_json()
+
+    # Assert
+    assert resp.status_code == OK
+    assert ep.STATE_RESP in resp_json
+    assert resp_json[ep.STATE_RESP] == mock_data
+    assert resp_json[ep.NUM_RECS] == len(mock_data)
 
 
 @patch('server.endpoints.stateqry.search_states_by_name')

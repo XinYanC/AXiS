@@ -1,9 +1,18 @@
 #!/usr/bin/env python3
 
 import sys
+import os
 import csv
 
-from countries.queries import create
+# Add project root to Python path
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
+
+from countries.queries import (
+    NAME,
+    CODE,
+    create,
+)
 
 
 def extract(flnm: str) -> list:
@@ -26,7 +35,13 @@ def transform(country_list: list) -> list:
     for country in country_list:
         country_dict = {}
         for i, fld in enumerate(col_names):
-            country_dict[fld] = country[i]
+            # Map 'country_name' to 'name' and 'country_code' to 'code' for countries.queries
+            if fld == 'country_name':
+                country_dict[NAME] = country[i]
+            elif fld == 'country_code':
+                country_dict[CODE] = country[i]
+            else:
+                country_dict[fld] = country[i]
         rev_list.append(country_dict)
 
     return rev_list
