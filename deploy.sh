@@ -3,8 +3,8 @@
 
 PROJ_DIR=AXiS
 VENV=myvirtualenv
-PA_DOMAIN="axis.pythonanywhere.com"
-PA_USER='axis'
+PA_DOMAIN="xinyanc.pythonanywhere.com"
+PA_USER='XinYanC'
 echo "Project dir = $PROJ_DIR"
 echo "PA domain = $PA_DOMAIN"
 echo "Virtual env = $VENV"
