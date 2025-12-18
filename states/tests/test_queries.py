@@ -146,3 +146,46 @@ def test_create_returns_unique_ids():
     # Clean up
     qry.delete(rec1[qry.CODE], rec1[qry.COUNTRY_CODE])
     qry.delete(rec2[qry.CODE], rec2[qry.COUNTRY_CODE])
+
+def test_delete_then_delete_again(temp_state_no_del):
+    """Ensure deleting a state twice raises ValueError the second time."""
+    code = temp_state_no_del[qry.CODE]
+    country = temp_state_no_del[qry.COUNTRY_CODE]
+    # First delete should work
+    ret = qry.delete(code, country)
+    assert ret == 1
+    # Second delete should raise ValueError
+    with pytest.raises(ValueError):
+        qry.delete(code, country)
+
+def test_create_same_name_different_code():
+    """States with the same NAME but different CODEs should be allowed."""
+    # Clean up any existing states
+    try:
+        qry.delete(qry.SAMPLE_CODE, qry.SAMPLE_COUNTRY)
+    except ValueError:
+        pass
+    try:
+        qry.delete('CA', 'USA')
+    except ValueError:
+        pass
+
+    rec1 = get_temp_rec()
+    rec2 = get_temp_rec()
+    rec2[qry.CODE] = 'CA'  # Different code
+    # Both have the same NAME
+    rec2[qry.NAME] = rec1[qry.NAME]
+
+    id1 = qry.create(rec1)
+    id2 = qry.create(rec2)
+
+    assert id1 != id2  # IDs should be unique
+    states = qry.read()
+    key1 = f"{rec1[qry.CODE]},{rec1[qry.COUNTRY_CODE]}"
+    key2 = f"{rec2[qry.CODE]},{rec2[qry.COUNTRY_CODE]}"
+    assert key1 in states
+    assert key2 in states
+
+    # Cleanup
+    qry.delete(rec1[qry.CODE], rec1[qry.COUNTRY_CODE])
+    qry.delete(rec2[qry.CODE], rec2[qry.COUNTRY_CODE])

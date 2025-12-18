@@ -8,7 +8,7 @@ import cities.queries as cityqry
 import countries.queries as countryqry
 import states.queries as stateqry
 from flask import Flask, request
-from flask_restx import Resource, Api  # , fields  # Namespace
+from flask_restx import Resource, Api, fields  # Namespace
 from flask_cors import CORS
 
 # import werkzeug.exceptions as wz
@@ -43,6 +43,36 @@ COUNTRY_RESP = 'Countries'
 STATES_EPS = '/states'
 STATE_RESP = 'States'
 
+# ==================== SWAGGER MODELS ====================
+
+city_model = api.model('City', {
+    'name': fields.String(required=True, description='City name'),
+    'state_code': fields.String(
+        required=True,
+        description='State code (e.g., "NY", "CA")'
+    )
+})
+
+country_model = api.model('Country', {
+    'name': fields.String(required=True, description='Country name'),
+    'code': fields.String(
+        required=True,
+        description='Country code (e.g., "USA", "FRA")'
+    )
+})
+
+state_model = api.model('State', {
+    'name': fields.String(required=True, description='State name'),
+    'code': fields.String(
+        required=True,
+        description='State code (e.g., "NY", "CA")'
+    ),
+    'country_code': fields.String(
+        required=True,
+        description='Country code (e.g., "USA")'
+    )
+})
+
 
 # ==================== CITIES ENDPOINTS ====================
 
@@ -68,11 +98,33 @@ class CitiesRead(Resource):
         }
 
 
+@api.route(f'{CITIES_EPS}/{COUNT}')
+class CitiesCount(Resource):
+    """
+    Get count of cities
+    """
+    def get(self):
+        """
+        Returns the total number of cities in the database.
+        """
+        try:
+            count = cityqry.num_cities()
+            return {
+                'count': count,
+                CITY_RESP: f'Total cities: {count}',
+            }
+        except ConnectionError as e:
+            return {ERROR: str(e)}, 500
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+
+
 @api.route(f'{CITIES_EPS}/{SEARCH}')
 class CitiesSearch(Resource):
     """
     Search cities by name
     """
+    @api.param('q', 'Search term (case-insensitive)', required=True)
     def get(self):
         """
         Search for cities by name (case-insensitive partial match).
@@ -97,32 +149,12 @@ class CitiesSearch(Resource):
             return {ERROR: str(e)}, 500
 
 
-@api.route(f'{CITIES_EPS}/{COUNT}')
-class CitiesCount(Resource):
-    """
-    Get count of cities
-    """
-    def get(self):
-        """
-        Returns the total number of cities in the database.
-        """
-        try:
-            count = cityqry.num_cities()
-            return {
-                'count': count,
-                CITY_RESP: f'Total cities: {count}',
-            }
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
-
-
 @api.route(f'{CITIES_EPS}/{CREATE}')
 class CitiesCreate(Resource):
     """
     Create a new city
     """
+    @api.expect(city_model)
     def post(self):
         """
         Create a new city.
@@ -153,6 +185,8 @@ class CitiesDelete(Resource):
     """
     Delete a city
     """
+    @api.param('name', 'City name', required=True)
+    @api.param('state_code', 'State code (e.g., "NY", "CA")', required=True)
     def delete(self):
         """
         Delete a city by name and state_code.
@@ -202,11 +236,33 @@ class CountriesRead(Resource):
         }
 
 
+@api.route(f'{COUNTRIES_EPS}/{COUNT}')
+class CountriesCount(Resource):
+    """
+    Get count of countries
+    """
+    def get(self):
+        """
+        Returns the total number of countries in the database.
+        """
+        try:
+            count = countryqry.num_countries()
+            return {
+                'count': count,
+                COUNTRY_RESP: f'Total countries: {count}',
+            }
+        except ConnectionError as e:
+            return {ERROR: str(e)}, 500
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+
+
 @api.route(f'{COUNTRIES_EPS}/{SEARCH}')
 class CountriesSearch(Resource):
     """
     Search countries by name
     """
+    @api.param('q', 'Search term (case-insensitive)', required=True)
     def get(self):
         """
         Search for countries by name (case-insensitive partial match).
@@ -231,32 +287,12 @@ class CountriesSearch(Resource):
             return {ERROR: str(e)}, 500
 
 
-@api.route(f'{COUNTRIES_EPS}/{COUNT}')
-class CountriesCount(Resource):
-    """
-    Get count of countries
-    """
-    def get(self):
-        """
-        Returns the total number of countries in the database.
-        """
-        try:
-            count = countryqry.num_countries()
-            return {
-                'count': count,
-                COUNTRY_RESP: f'Total countries: {count}',
-            }
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
-
-
 @api.route(f'{COUNTRIES_EPS}/{CREATE}')
 class CountriesCreate(Resource):
     """
     Create a new country
     """
+    @api.expect(country_model)
     def post(self):
         """
         Create a new country.
@@ -287,6 +323,8 @@ class CountriesDelete(Resource):
     """
     Delete a country
     """
+    @api.param('name', 'Country name', required=True)
+    @api.param('code', 'Country code (e.g., "USA", "FRA")', required=True)
     def delete(self):
         """
         Delete a country by name and code.
@@ -335,11 +373,33 @@ class StatesRead(Resource):
         }
 
 
+@api.route(f'{STATES_EPS}/{COUNT}')
+class StatesCount(Resource):
+    """
+    Get count of states
+    """
+    def get(self):
+        """
+        Returns the total number of states in the database.
+        """
+        try:
+            count = stateqry.num_states()
+            return {
+                'count': count,
+                STATE_RESP: f'Total states: {count}',
+            }
+        except ConnectionError as e:
+            return {ERROR: str(e)}, 500
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+
+
 @api.route(f'{STATES_EPS}/{SEARCH}')
 class StatesSearch(Resource):
     """
     Search states by name
     """
+    @api.param('q', 'Search term (case-insensitive)', required=True)
     def get(self):
         """
         Search for states by name (case-insensitive partial match).
@@ -364,32 +424,12 @@ class StatesSearch(Resource):
             return {ERROR: str(e)}, 500
 
 
-@api.route(f'{STATES_EPS}/{COUNT}')
-class StatesCount(Resource):
-    """
-    Get count of states
-    """
-    def get(self):
-        """
-        Returns the total number of states in the database.
-        """
-        try:
-            count = stateqry.num_states()
-            return {
-                'count': count,
-                STATE_RESP: f'Total states: {count}',
-            }
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
-
-
 @api.route(f'{STATES_EPS}/{CREATE}')
 class StatesCreate(Resource):
     """
     Create a new state
     """
+    @api.expect(state_model)
     def post(self):
         """
         Create a new state.
@@ -421,6 +461,8 @@ class StatesDelete(Resource):
     """
     Delete a state
     """
+    @api.param('code', 'State code (e.g., "NY", "CA")', required=True)
+    @api.param('country_code', 'Country code (e.g., "USA")', required=True)
     def delete(self):
         """
         Delete a state by code and country_code.

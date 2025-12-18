@@ -71,6 +71,61 @@ Quick steps to run locally:
 If the Flask endpoint cannot reach MongoDB the server will return an error
 message indicating the DB is not reachable.
 
+## Loading Data with ETL Scripts
+
+The project includes ETL (Extract, Transform, Load) scripts to populate the database with geographical data.
+
+### Prerequisites
+
+1. Ensure MongoDB is running locally (see steps above)
+2. Activate the virtual environment:
+   ```zsh
+   source venv/bin/activate
+   # or: . venv/bin/activate
+   ```
+
+### Running ETL Scripts
+
+All ETL scripts are located in the `ETL/` directory and can be run from the project root.
+
+#### Load Countries
+
+Loads country data from a tab-separated CSV file:
+
+```bash
+python3 ETL/load_countries.py ETL/countries.csv
+```
+
+The CSV file should have columns: `country_name` and `country_code`.
+
+#### Load States
+
+Loads state/province data with latitude and longitude coordinates:
+
+```bash
+python3 ETL/load_states_lat_long.py ETL/states_lat_long.csv
+```
+
+The CSV file should have columns: `code`, `latitude`, `longitude`, and `name`. The script automatically adds `country_code: 'USA'` to each state.
+
+**Note**: If states already exist in the database, the script will raise a duplicate key error. You may need to clear existing states first or modify the script to handle duplicates.
+
+#### Load Cities
+
+Loads city data from a tab-separated CSV file:
+
+```bash
+python3 ETL/load_cities.py ETL/cities.csv
+```
+
+Or with an optional state_code override (applies the same state_code to all cities):
+
+```bash
+python3 ETL/load_cities.py ETL/cities.csv CA
+```
+
+The CSV file should have columns: `city_name` and `state_code`.
+
 ## Environment Variables
 
 To use a cloud MongoDB deployment, you need to set environment variables:

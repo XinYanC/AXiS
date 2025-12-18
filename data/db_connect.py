@@ -59,11 +59,15 @@ def connect_db():
         if MONGO_TYPE == CLOUD:
             # Cloud MongoDB connection
             if not USERNAME:
-                raise ValueError('You must set MONGO_USER environment variable '
-                                 + 'to use Mongo in the cloud.')
+                raise ValueError(
+                    'You must set MONGO_USER environment variable '
+                    + 'to use Mongo in the cloud.'
+                )
             if not PASSWORD:
-                raise ValueError('You must set MONGO_PASSWD environment variable '
-                                 + 'to use Mongo in the cloud.')
+                raise ValueError(
+                    'You must set MONGO_PASSWD environment variable '
+                    + 'to use Mongo in the cloud.'
+                )
             print('Connecting to Mongo in the cloud.')
             client = pm.MongoClient(f'mongodb+srv://{USERNAME}:{PASSWORD}'
                                     + '@geodb.f4tdnzf.mongodb.net/'
@@ -71,7 +75,7 @@ def connect_db():
                                     serverSelectionTimeoutMS=5000,
                                     connectTimeoutMS=5000,
                                     tlsCAFile=certifi.where())
-            
+
             # Test the connection to ensure MongoDB is accessible
             try:
                 # This will raise an exception if MongoDB is not accessible
@@ -92,31 +96,38 @@ def connect_db():
             # Get MongoDB connection details from environment or use defaults
             mongo_host = os.environ.get('MONGO_HOST', 'localhost')
             mongo_port = int(os.environ.get('MONGO_PORT', 27017))
-            
+
             # Connection string for local MongoDB
             connection_string = f'mongodb://{mongo_host}:{mongo_port}/'
-            
-            # Create client with connection timeout to fail fast if MongoDB isn't running
+
+            # Create client with connection timeout to fail fast
+            # if MongoDB isn't running
             client = pm.MongoClient(
                 connection_string,
                 serverSelectionTimeoutMS=5000,  # 5 second timeout
                 connectTimeoutMS=5000
             )
-            
+
             # Test the connection to ensure MongoDB is running
             try:
                 # This will raise an exception if MongoDB is not accessible
                 client.admin.command('ping')
-                print(f"Successfully connected to MongoDB at {mongo_host}:{mongo_port}")
+                print(
+                    f"Successfully connected to MongoDB at "
+                    f"{mongo_host}:{mongo_port}"
+                )
             except pm.errors.ServerSelectionTimeoutError:
                 raise ConnectionError(
-                    f'Failed to connect to MongoDB at {mongo_host}:{mongo_port}. '
+                    f'Failed to connect to MongoDB at '
+                    f'{mongo_host}:{mongo_port}. '
                     'Please ensure MongoDB is running locally. '
-                    'You can start it with: mongod (or brew services start mongodb-community on macOS)'
+                    'You can start it with: mongod '
+                    '(or brew services start mongodb-community on macOS)'
                 )
             except Exception as e:
                 raise ConnectionError(
-                    f'Error connecting to MongoDB at {mongo_host}:{mongo_port}: {str(e)}'
+                    f'Error connecting to MongoDB at '
+                    f'{mongo_host}:{mongo_port}: {str(e)}'
                 )
     return client
 
@@ -187,4 +198,3 @@ def read_dict(collection, key, db=GEO_DB, no_id=True) -> dict:
     for rec in recs:
         recs_as_dict[rec[key]] = rec
     return recs_as_dict
-
