@@ -51,5 +51,6 @@ jobs:
       - name: Deploy to PythonAnywhere
         if: github.ref == 'refs/heads/master'
         run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.PA_USERNAME }}@ssh.pythonanywhere.com "cd ~/AXiS && git pull origin master"
           curl -X POST https://www.pythonanywhere.com/api/v0/user/${{ secrets.PA_USERNAME }}/webapps/xinyanc.pythonanywhere.com/reload/ \
             -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}"
