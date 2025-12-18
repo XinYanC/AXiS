@@ -21,6 +21,9 @@ def test_hello():
     resp_json = resp.get_json()
     assert ep.HELLO_RESP in resp_json
 
+
+# ==================== CITIES ENDPOINT TESTS ====================
+
 @patch('server.endpoints.cityqry.read')
 def test_cities_read(mock_read):
     """Test the /cities/read endpoint returns the mocked cities and count."""
@@ -85,6 +88,89 @@ def test_cities_count(mock_count):
     assert resp.status_code == OK
     assert resp_json['count'] == 42
 
+@patch('server.endpoints.cityqry.create')
+def test_cities_create(mock_create):
+    """Test the /cities/create endpoint."""
+    # Arrange
+    mock_create.return_value = '507f1f77bcf86cd799439011'
+    city_data = {"name": "Test City", "state_code": "CA"}
+
+    # Act
+    resp = TEST_CLIENT.post(
+        f"{ep.CITIES_EPS}/{ep.CREATE}",
+        json=city_data,
+    )
+    resp_json = resp.get_json()
+
+    # Assert
+    assert resp.status_code == 201
+    assert ep.MESSAGE in resp_json
+    assert resp_json['id'] == '507f1f77bcf86cd799439011'
+    assert resp_json['city'] == city_data
+    mock_create.assert_called_once()
+
+
+@patch('server.endpoints.cityqry.create')
+def test_cities_create_invalid_data(mock_create):
+    """Test the /cities/create endpoint with invalid data."""
+    # Arrange
+    mock_create.side_effect = ValueError('City must have a non-empty name.')
+
+    # Act
+    resp = TEST_CLIENT.post(
+        f"{ep.CITIES_EPS}/{ep.CREATE}",
+        json={"name": "", "state_code": "CA"},
+    )
+    resp_json = resp.get_json()
+
+    # Assert
+    assert resp.status_code == 400
+    assert ep.ERROR in resp_json
+
+@patch('server.endpoints.cityqry.delete')
+def test_cities_delete(mock_delete):
+    """Test the /cities/delete endpoint."""
+    # Arrange
+    mock_delete.return_value = True
+
+    # Act
+    resp = TEST_CLIENT.delete(
+        f"{ep.CITIES_EPS}/{ep.DELETE}?name=Test%20City&state_code=CA"
+    )
+    resp_json = resp.get_json()
+
+    # Assert
+    assert resp.status_code == OK
+    assert ep.MESSAGE in resp_json
+    mock_delete.assert_called_once_with("Test City", "CA")
+
+
+@patch('server.endpoints.cityqry.delete')
+def test_cities_delete_not_found(mock_delete):
+    """Test the /cities/delete endpoint when city not found."""
+    # Arrange
+    mock_delete.side_effect = ValueError('City not found: Test, CA')
+
+    # Act
+    resp = TEST_CLIENT.delete(
+        f"{ep.CITIES_EPS}/{ep.DELETE}?name=Test&state_code=CA"
+    )
+    resp_json = resp.get_json()
+
+    # Assert
+    assert resp.status_code == NOT_FOUND
+    assert ep.ERROR in resp_json
+
+
+def test_cities_delete_missing_params():
+    """Test the /cities/delete endpoint without required params."""
+    resp = TEST_CLIENT.delete(f"{ep.CITIES_EPS}/{ep.DELETE}?name=Test")
+    resp_json = resp.get_json()
+    assert resp.status_code == BAD_REQUEST
+    assert ep.ERROR in resp_json
+
+
+# ==================== COUNTRIES ENDPOINT TESTS ====================
 
 @patch('server.endpoints.countryqry.read')
 def test_countries_read(mock_read):
@@ -137,6 +223,45 @@ def test_countries_count(mock_count):
     assert resp.status_code == OK
     assert resp_json['count'] == 10
 
+@patch('server.endpoints.countryqry.create')
+def test_countries_create(mock_create):
+    """Test the /countries/create endpoint."""
+    # Arrange
+    mock_create.return_value = '507f1f77bcf86cd799439012'
+    country_data = {"name": "Test Country", "code": "TC"}
+
+    # Act
+    resp = TEST_CLIENT.post(
+        f"{ep.COUNTRIES_EPS}/{ep.CREATE}",
+        json=country_data,
+    )
+    resp_json = resp.get_json()
+
+    # Assert
+    assert resp.status_code == 201
+    assert ep.MESSAGE in resp_json
+    assert resp_json['id'] == '507f1f77bcf86cd799439012'
+    assert resp_json['country'] == country_data
+
+@patch('server.endpoints.countryqry.delete')
+def test_countries_delete(mock_delete):
+    """Test the /countries/delete endpoint."""
+    # Arrange
+    mock_delete.return_value = True
+
+    # Act
+    resp = TEST_CLIENT.delete(
+        f"{ep.COUNTRIES_EPS}/{ep.DELETE}?name=Test%20Country&code=TC"
+    )
+    resp_json = resp.get_json()
+
+    # Assert
+    assert resp.status_code == OK
+    assert ep.MESSAGE in resp_json
+    mock_delete.assert_called_once_with("Test Country", "TC")
+
+
+# ==================== STATES ENDPOINT TESTS ====================
 
 @patch('server.endpoints.stateqry.read')
 def test_states_read(mock_read):
@@ -189,3 +314,54 @@ def test_states_count(mock_count):
     resp_json = resp.get_json()
     assert resp.status_code == OK
     assert resp_json['count'] == 50
+
+@patch('server.endpoints.stateqry.create')
+def test_states_create(mock_create):
+    """Test the /states/create endpoint."""
+    # Arrange
+    mock_create.return_value = '507f1f77bcf86cd799439013'
+    state_data = {
+        "name": "Test State",
+        "code": "TS",
+        "country_code": "USA",
+    }
+
+    # Act
+    resp = TEST_CLIENT.post(
+        f"{ep.STATES_EPS}/{ep.CREATE}",
+        json=state_data,
+    )
+    resp_json = resp.get_json()
+
+    # Assert
+    assert resp.status_code == 201
+    assert ep.MESSAGE in resp_json
+    assert resp_json['id'] == '507f1f77bcf86cd799439013'
+    assert resp_json['state'] == state_data
+
+@patch('server.endpoints.stateqry.delete')
+def test_states_delete(mock_delete):
+    """Test the /states/delete endpoint."""
+    # Arrange
+    mock_delete.return_value = True
+
+    # Act
+    resp = TEST_CLIENT.delete(
+        f"{ep.STATES_EPS}/{ep.DELETE}?code=TS&country_code=USA"
+    )
+    resp_json = resp.get_json()
+
+    # Assert
+    assert resp.status_code == OK
+    assert ep.MESSAGE in resp_json
+    mock_delete.assert_called_once_with("TS", "USA")
+
+
+def test_states_delete_missing_params():
+    """Test the /states/delete endpoint without required params."""
+    resp = TEST_CLIENT.delete(
+        f"{ep.STATES_EPS}/{ep.DELETE}?code=TS"
+    )
+    resp_json = resp.get_json()
+    assert resp.status_code == BAD_REQUEST
+    assert ep.ERROR in resp_json
