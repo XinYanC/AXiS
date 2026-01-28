@@ -29,46 +29,7 @@
 - World API integration for globe-based visualization with photos and text
 - Library and book discovery using WorldCat (https://search.worldcat.org/)
 
-## 3. AXiS Student Marketplace
-
-### P0 Requirements
-
-#### Marketplace Basics
-- Allow users to post items
-- Use a shared, global database for marketplace items
-- Display a homepage of items with location awareness
-- Indicate transaction type: buy, sell, pickup, or drop-off
-
-#### Location Features
-- Radius-based item recommendations (e.g., within 1 mile)
-- Search by ZIP code
-- Search by latitude and longitude
-- Automatically derive item location from photo metadata when available
-- Allow manual location entry as a fallback
-
-#### User Accounts
-- Login database with securely hashed passwords
-- Collect school affiliation during signup
-- Allow filtering items by school affiliation
-
-### P1 Nice-to-Haves
-- Notifications or confirmations when a transaction is completed
-- Globe or map-based visualization
-- Backup strategy using a secondary database
-- Auction house provenance reference: https://guides.nyu.edu/provenance/art-auctions
-- University museums reference: https://university-museums-and-collections.net/
-
-## 4. Museum Feature
-
-### Core Museum Functionality
-- Query a location and view art pieces from that location
-- Browse artworks and view their associated locations
-- Filter exhibits by artist
-- Filter exhibits by time period
-- Filter exhibits by geographic location
-
-## 5. Development Goals
-
+### Development Goals
 - Learn full-stack development
 - Collaborate effectively and divide work equally
 - Build a React frontend
@@ -76,7 +37,7 @@
 - Link frontend to backend APIs
 - Deploy frontend using Vercel
 
-## 6. User Requirements for AXiS Student Marketplace
+## 3. User Requirements for AXiS Student Marketplace
 
 ### General
 - Homepage displaying available items listed by students within proximity or school affiliation
@@ -117,7 +78,7 @@
 - Transaction methods include buy, sell, pickup, and drop-off
 - Nice-to-have: users receive notifications or confirmations when a transaction is completed
 
-## 7. User Requirements for the Museum Photo App
+## 4. User Requirements for the Museum Photo App
 
 ### General
 - Digital museum built from user-captured photos of art pieces
