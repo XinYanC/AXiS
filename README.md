@@ -7,8 +7,9 @@
 - XinYan Chen xc2496
 
 ## Project Description
-
 Senior Design Project based on geographical database.
+
+[Progress and Goals](ProgressAndGoals.md)
 
 ## Potential App Features/Goals
 
