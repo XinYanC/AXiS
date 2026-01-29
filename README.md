@@ -11,15 +11,6 @@ Senior Design Project based on geographical database.
 
 [Progress and Goals](ProgressAndGoals.md)
 
-## Potential App Features/Goals
-
-- Vacation Destination/Planning
-- Market Analysis
-- Transportation
-- Real Estate
-- Town/City/Country Population
-- ... still brainstorming
-
 ## flask-api
 
 An example flask rest API server.
