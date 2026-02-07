@@ -8,6 +8,13 @@ import cities.queries as qry
 
 from copy import deepcopy
 
+def safe_delete(city):
+    try:
+        qry.delete(city[qry.NAME], city[qry.STATE_CODE])
+    except ValueError:
+        pass
+
+
 def get_temp_rec():
     return deepcopy(qry.SAMPLE_CITY)
 
@@ -15,12 +22,11 @@ def get_temp_rec():
 @pytest.fixture
 def temp_city_unique():
     temp_rec = get_temp_rec()
+    safe_delete(temp_rec)
+    qry.clear_cache()
     rec_id = qry.create(temp_rec)
     yield rec_id, temp_rec
-    try:
-        qry.delete(temp_rec[qry.NAME], temp_rec[qry.STATE_CODE])
-    except ValueError:
-        pass
+    safe_delete(temp_rec)
 
 
 @pytest.fixture(scope='function')
@@ -37,10 +43,8 @@ def sample_cities():
     created_ids = []
     # Clean up any existing cities first
     for city in cities_to_create:
-        try:
-            qry.delete(city[qry.NAME], city[qry.STATE_CODE])
-        except ValueError:
-            pass  # Doesn't exist, which is fine
+        safe_delete(city)
+    qry.clear_cache()
     # Now create the cities
     for city in cities_to_create:
         city_id = qry.create(city)
@@ -50,10 +54,7 @@ def sample_cities():
     finally:
         # Clean up created cities
         for name, state_code in created_ids:
-            try:
-                qry.delete(name, state_code)
-            except ValueError:
-                pass  # Already deleted
+            safe_delete({'name': name, 'state_code': state_code})
 
 
 def test_search_cities_by_name_with_fixture(sample_cities):
@@ -87,19 +88,26 @@ def test_bad_test_for_num_cities():
 
 
 def test_num_cities():
+    # Clean up any existing record first
+    temp_rec = get_temp_rec()
+    safe_delete(temp_rec)
+    qry.clear_cache()
     # get the count
     old_count = qry.num_cities()
     # add a record
-    temp_rec = get_temp_rec()
     qry.create(temp_rec)
     assert qry.num_cities() == old_count + 1
     # Clean up
-    qry.delete(temp_rec[qry.NAME], temp_rec[qry.STATE_CODE])
+    safe_delete(temp_rec)
 
 
 def test_good_create():
+    # Clean up any existing record first
+    temp_rec = get_temp_rec()
+    safe_delete(temp_rec)
+    qry.clear_cache()
     old_count = qry.num_cities()
-    new_rec_id = qry.create(get_temp_rec())
+    new_rec_id = qry.create(temp_rec)
 
     # id returned should be valid
     assert qry.is_valid_id(new_rec_id)
@@ -116,7 +124,7 @@ def test_good_create():
     assert created_city['state_code'] == qry.SAMPLE_CITY['state_code']
     
     # Clean up
-    qry.delete(qry.SAMPLE_CITY['name'], qry.SAMPLE_CITY['state_code'])
+    safe_delete(temp_rec)
 
 @pytest.mark.parametrize("city_data, match", [
     ({}, "name"),
@@ -223,6 +231,11 @@ def test_create_duplicate_city():
     city1 = {'name': f'Duplicate Test City {timestamp}', 'state_code': 'DT'}
     city2 = {'name': f'Duplicate Test City {timestamp + 1}', 'state_code': 'DT'}
     
+    # Clean up any existing records first
+    safe_delete(city1)
+    safe_delete(city2)
+    qry.clear_cache()
+    
     rec_id1 = qry.create(city1)
     rec_id2 = qry.create(city2)
     
@@ -273,6 +286,11 @@ def test_create_multiple_cities_and_count():
         {'name': f'Multi City {timestamp} C', 'state_code': 'MC'},
     ]
     
+    # Clean up any existing records first
+    for city in test_cities:
+        safe_delete(city)
+    qry.clear_cache()
+    
     initial_count = qry.num_cities()
     created_cities = []
     
@@ -285,10 +303,7 @@ def test_create_multiple_cities_and_count():
     finally:
         # Clean up
         for city in created_cities:
-            try:
-                qry.delete(city[qry.NAME], city[qry.STATE_CODE])
-            except ValueError:
-                pass
+            safe_delete(city)
 
 
 def test_main_prints_read(monkeypatch, capsys):
@@ -354,6 +369,11 @@ def test_unicode_and_special_characters_in_names():
         {'name': 'København', 'state_code': 'DK'},
     ]
     
+    # Clean up any existing records first
+    for city_data in test_cases:
+        safe_delete(city_data)
+    qry.clear_cache()
+    
     created_cities = []
     
     try:
@@ -367,10 +387,7 @@ def test_unicode_and_special_characters_in_names():
     finally:
         # Clean up all created cities
         for city_data in created_cities:
-            try:
-                qry.delete(city_data[qry.NAME], city_data[qry.STATE_CODE])
-            except ValueError:
-                pass  # Already deleted
+            safe_delete(city_data)
 
 def test_search_cities_by_name_very_long_string():
     """Test search with very long input string."""

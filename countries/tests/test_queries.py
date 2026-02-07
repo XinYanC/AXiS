@@ -103,15 +103,23 @@ def test_bad_test_for_num_countries():
 
 def test_num_countries(clean_sample_country):
     """Test that num_countries returns correct count."""
-    old_count = qry.num_countries()
     temp_rec = get_temp_rec()
+    # Ensure it's deleted (clean_sample_country fixture handles this, but be explicit)
+    safe_delete(temp_rec)
+    qry.clear_cache()
+    old_count = qry.num_countries()
     qry.create(temp_rec)
     assert qry.num_countries() == old_count + 1
+    # Clean up
+    safe_delete(temp_rec)
 
 
 def test_good_create(clean_sample_country):
     """Test creating a country with valid data."""
     temp_rec = get_temp_rec()
+    # Ensure it's deleted (clean_sample_country fixture handles this, but be explicit)
+    safe_delete(temp_rec)
+    qry.clear_cache()
     old_count = qry.num_countries()
     new_rec_id = qry.create(temp_rec)
 
@@ -125,6 +133,8 @@ def test_good_create(clean_sample_country):
     created_country = countries[country_key]
     assert created_country['name'] == qry.SAMPLE_COUNTRY['name']
     assert created_country['code'] == qry.SAMPLE_COUNTRY['code']
+    # Clean up
+    safe_delete(temp_rec)
 
 @pytest.mark.parametrize("country_data, match", [
     ({}, "name"),
@@ -229,13 +239,17 @@ def test_create_duplicate_country():
     country1 = {'name': f'Duplicate Test Country {timestamp}', 'code': 'DT'}
     country2 = {'name': f'Duplicate Test Country {timestamp + 1}', 'code': 'DT'}
     
-    # Clean up any existing records with code 'DT'
+    # Clean up any existing records with code 'DT' first
     qry.clear_cache()
     countries = qry.read()
     if 'DT' in countries:
         existing = countries['DT']
         safe_delete(existing)
         qry.clear_cache()
+    # Also try to delete by the test data directly
+    safe_delete(country1)
+    safe_delete(country2)
+    qry.clear_cache()
     
     qry.create(country1)
     with pytest.raises(ValueError, match='Duplicate key'):

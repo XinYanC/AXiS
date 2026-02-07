@@ -6,6 +6,13 @@ import pytest
 import states.queries as qry
 
 
+def safe_delete(state):
+    try:
+        qry.delete(state[qry.CODE], state[qry.COUNTRY_CODE])
+    except ValueError:
+        pass
+
+
 def get_temp_rec():
     return deepcopy(qry.SAMPLE_STATE)
 
@@ -13,6 +20,8 @@ def get_temp_rec():
 @pytest.fixture(scope='function')
 def temp_state_no_del():
     temp_rec = get_temp_rec()
+    # Clean up any existing record first
+    safe_delete(temp_rec)
     qry.create(get_temp_rec())
     return temp_rec
 
@@ -20,12 +29,11 @@ def temp_state_no_del():
 @pytest.fixture(scope='function')
 def temp_state():
     temp_rec = get_temp_rec()
+    # Clean up any existing record first
+    safe_delete(temp_rec)
     new_rec_id = qry.create(get_temp_rec())
     yield new_rec_id
-    try:
-        qry.delete(temp_rec[qry.CODE], temp_rec[qry.COUNTRY_CODE])
-    except ValueError:
-        print('The record was already deleted.')
+    safe_delete(temp_rec)
 
 
 @pytest.mark.skip('This is an example of a bad test!')
@@ -35,41 +43,35 @@ def test_bad_test_for_count():
 
 def test_count():
     # Clean up any existing state first
-    try:
-        qry.delete(qry.SAMPLE_CODE, qry.SAMPLE_COUNTRY)
-    except ValueError:
-        pass  # State doesn't exist, which is fine
+    temp_rec = get_temp_rec()
+    safe_delete(temp_rec)
     # get the count
     old_count = qry.num_states()
     # add a record
     qry.create(get_temp_rec())
     assert qry.num_states() == old_count + 1
-    qry.delete(qry.SAMPLE_CODE, qry.SAMPLE_COUNTRY)
+    safe_delete(temp_rec)
 
 
 def test_good_create():
     # Clean up any existing state first
-    try:
-        qry.delete(qry.SAMPLE_CODE, qry.SAMPLE_COUNTRY)
-    except ValueError:
-        pass  # State doesn't exist, which is fine
+    temp_rec = get_temp_rec()
+    safe_delete(temp_rec)
     old_count = qry.num_states()
     new_rec_id = qry.create(get_temp_rec())
     assert qry.is_valid_id(new_rec_id)
     assert qry.num_states() == old_count + 1
-    qry.delete(qry.SAMPLE_CODE, qry.SAMPLE_COUNTRY)
+    safe_delete(temp_rec)
 
 
 def test_create_dup_key():
     # Clean up any existing state first
-    try:
-        qry.delete(qry.SAMPLE_CODE, qry.SAMPLE_COUNTRY)
-    except ValueError:
-        pass  # State doesn't exist, which is fine
+    temp_rec = get_temp_rec()
+    safe_delete(temp_rec)
     qry.create(get_temp_rec())
     with pytest.raises(ValueError):
         qry.create(get_temp_rec())
-    qry.delete(qry.SAMPLE_CODE, qry.SAMPLE_COUNTRY)
+    safe_delete(temp_rec)
 
 
 def test_create_bad_name():
@@ -113,14 +115,9 @@ def test_read_after_delete(temp_state):
 
 def test_create_returns_unique_ids():
     # Clean up any existing states first
-    try:
-        qry.delete(qry.SAMPLE_CODE, qry.SAMPLE_COUNTRY)
-    except ValueError:
-        pass  # Doesn't exist, which is fine
-    try:
-        qry.delete('CA', 'USA')
-    except ValueError:
-        pass  # Doesn't exist, which is fine
+    temp_rec = get_temp_rec()
+    safe_delete(temp_rec)
+    safe_delete({'code': 'CA', 'country_code': 'USA'})
     
     rec1 = get_temp_rec()
     # Create first state
@@ -130,7 +127,7 @@ def test_create_returns_unique_ids():
         qry.create(rec1)
     
     # Clean up
-    qry.delete(qry.SAMPLE_CODE, qry.SAMPLE_COUNTRY)
+    safe_delete(temp_rec)
     
     # Now create two different states to verify unique IDs
     rec1 = get_temp_rec()
@@ -138,14 +135,18 @@ def test_create_returns_unique_ids():
     rec2[qry.CODE] = 'CA'  # Different code
     rec2[qry.NAME] = 'California'
     
+    # Clean up these too
+    safe_delete(rec1)
+    safe_delete(rec2)
+    
     id1 = qry.create(rec1)
     id2 = qry.create(rec2)
     
     assert id1 != id2
     
     # Clean up
-    qry.delete(rec1[qry.CODE], rec1[qry.COUNTRY_CODE])
-    qry.delete(rec2[qry.CODE], rec2[qry.COUNTRY_CODE])
+    safe_delete(rec1)
+    safe_delete(rec2)
 
 def test_delete_then_delete_again(temp_state_no_del):
     """Ensure deleting a state twice raises ValueError the second time."""
@@ -161,14 +162,9 @@ def test_delete_then_delete_again(temp_state_no_del):
 def test_create_same_name_different_code():
     """States with the same NAME but different CODEs should be allowed."""
     # Clean up any existing states
-    try:
-        qry.delete(qry.SAMPLE_CODE, qry.SAMPLE_COUNTRY)
-    except ValueError:
-        pass
-    try:
-        qry.delete('CA', 'USA')
-    except ValueError:
-        pass
+    temp_rec = get_temp_rec()
+    safe_delete(temp_rec)
+    safe_delete({'code': 'CA', 'country_code': 'USA'})
 
     rec1 = get_temp_rec()
     rec2 = get_temp_rec()
@@ -187,5 +183,5 @@ def test_create_same_name_different_code():
     assert key2 in states
 
     # Cleanup
-    qry.delete(rec1[qry.CODE], rec1[qry.COUNTRY_CODE])
-    qry.delete(rec2[qry.CODE], rec2[qry.COUNTRY_CODE])
+    safe_delete(rec1)
+    safe_delete(rec2)

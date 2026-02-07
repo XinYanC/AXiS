@@ -70,8 +70,9 @@ The project includes ETL (Extract, Transform, Load) scripts to populate the data
 ### Prerequisites
 
 1. Ensure MongoDB is running locally (see steps above)
-2. Activate the virtual environment:
+2. Create and activate the virtual environment:
    ```zsh
+   python3 -m venv path/to/venv
    source venv/bin/activate
    # or: . venv/bin/activate
    ```
