@@ -2,16 +2,15 @@
 This is the file containing all of the endpoints for our flask app.
 The endpoint called `endpoints` will return all available endpoints.
 """
-# from http import HTTPStatus
 
 import cities.queries as cityqry
 import countries.queries as countryqry
 import states.queries as stateqry
+import users.queries as userqry
 from flask import Flask, request
 from flask_restx import Resource, Api, fields  # Namespace
 from flask_cors import CORS
 
-# import werkzeug.exceptions as wz
 
 app = Flask(__name__)
 CORS(app)
@@ -43,6 +42,9 @@ COUNTRY_RESP = 'Countries'
 STATES_EPS = '/states'
 STATE_RESP = 'States'
 
+USERS_EPS = '/users'
+USER_RESP = 'User'
+
 # ==================== SWAGGER MODELS ====================
 
 city_model = api.model('City', {
@@ -71,6 +73,27 @@ state_model = api.model('State', {
         required=True,
         description='Country code (e.g., "USA")'
     )
+})
+
+user_model = api.model('User', {
+    'username': fields.String(
+        required=True, description='Username (unique)'
+    ),
+    'password': fields.String(
+        required=True, description='Password (will be hashed)'
+    ),
+    'name': fields.String(required=True, description='User full name'),
+    'age': fields.Integer(required=False, description='User age'),
+    'bio': fields.String(required=False, description='User biography'),
+    'is_verified': fields.Boolean(
+        required=False, description='Verification status'
+    ),
+    'email': fields.String(
+        required=True, description='Email (must end in .edu)'
+    ),
+    'location': fields.String(
+        required=False, description='Location (e.g., "NY,USA")'
+    ),
 })
 
 
@@ -480,6 +503,154 @@ class StatesDelete(Resource):
             return {
                 MESSAGE: f'State "{code}, {country_code}" deleted '
                          f'successfully',
+            }
+        except ValueError as e:
+            return {ERROR: str(e)}, 404
+        except ConnectionError as e:
+            return {ERROR: str(e)}, 500
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+
+
+# ==================== USERS ENDPOINTS ====================
+
+@api.route(f'{USERS_EPS}/{READ}')
+class UsersRead(Resource):
+    """
+    Interact with users collection
+    """
+    def get(self):
+        """
+        Returns all users in the database.
+        """
+        try:
+            users = userqry.read()
+            num_recs = len(users)
+        except ConnectionError as e:
+            return {ERROR: str(e)}, 500
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+        return {
+            USER_RESP: users,
+            NUM_RECS: num_recs,
+        }
+
+
+@api.route(f'{USERS_EPS}/{COUNT}')
+class UsersCount(Resource):
+    """
+    Get count of users
+    """
+    def get(self):
+        """
+        Returns the total number of users in the database.
+        """
+        try:
+            count = userqry.num_users()
+            return {
+                'count': count,
+                USER_RESP: f'Total users: {count}',
+            }
+        except ConnectionError as e:
+            return {ERROR: str(e)}, 500
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+
+
+@api.route(f'{USERS_EPS}/{SEARCH}')
+class UsersSearch(Resource):
+    """
+    Search users by name or username
+    """
+    @api.param('q', 'Search term (case-insensitive)', required=True)
+    def get(self):
+        """
+        Search for users by name or username (case-insensitive partial match).
+        Query param: 'q' (search term)
+        """
+        try:
+            search_term = request.args.get('q')
+            if not search_term:
+                return {ERROR: 'Query parameter "q" is required'}, 400
+            users = userqry.search_users_by_name(search_term)
+            num_recs = len(users)
+            return {
+                USER_RESP: users,
+                NUM_RECS: num_recs,
+                'search_term': search_term,
+            }
+        except ValueError as e:
+            return {ERROR: str(e)}, 400
+        except ConnectionError as e:
+            return {ERROR: str(e)}, 500
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+
+
+@api.route(f'{USERS_EPS}/{CREATE}')
+class UsersCreate(Resource):
+    """
+    Create a new user
+    """
+    @api.expect(user_model)
+    def post(self):
+        """
+        Create a new user.
+        Required JSON body: {
+            "username": "johndoe",
+            "password": "password123",
+            "name": "John Doe",
+            "email": "johndoe@example.edu",
+            "age": 25,
+            "bio": "User bio",
+            "is_verified": false,
+            "location": "NY,USA"
+        }
+        Note: password will be hashed, email must end in .edu
+        """
+        try:
+            user_data = request.json
+            if not user_data:
+                return {ERROR: 'Request body must contain JSON data'}, 400
+            # Store original data before create modifies it
+            original_data = dict(user_data)
+            # Don't return password in response
+            if 'password' in original_data:
+                original_data['password'] = '[REDACTED]'
+            rec_id = userqry.create(user_data)
+            return {
+                MESSAGE: 'User created successfully',
+                'id': str(rec_id),
+                'user': original_data,
+            }, 201
+        except ValueError as e:
+            return {ERROR: str(e)}, 400
+        except ConnectionError as e:
+            return {ERROR: str(e)}, 500
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+
+
+@api.route(f'{USERS_EPS}/{DELETE}')
+class UsersDelete(Resource):
+    """
+    Delete a user
+    """
+    @api.param('username', 'Username or MongoDB ObjectId', required=True)
+    def delete(self):
+        """
+        Delete a user by username or MongoDB ObjectId.
+        Query param: 'username' (username string or ObjectId)
+        """
+        try:
+            username_or_id = request.args.get('username')
+            if not username_or_id:
+                return {
+                    ERROR: 'Query parameter "username" is required'
+                }, 400
+            userqry.delete(username_or_id)
+            return {
+                MESSAGE: f'User "{username_or_id}" deleted successfully',
             }
         except ValueError as e:
             return {ERROR: str(e)}, 404

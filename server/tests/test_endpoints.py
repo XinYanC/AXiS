@@ -365,3 +365,151 @@ def test_states_delete_missing_params():
     resp_json = resp.get_json()
     assert resp.status_code == BAD_REQUEST
     assert ep.ERROR in resp_json
+
+# ==================== USERS ENDPOINT TESTS ====================
+
+@patch('server.endpoints.userqry.read')
+def test_users_read(mock_read):
+    """Test the /users/read endpoint returns the mocked users and count."""
+    # Arrange: mock the read() call to return a predictable dict
+    mock_data = {
+        "user1": {"username": "johndoe", "name": "John Doe", "email": "john@example.edu"},
+        "user2": {"username": "janedoe", "name": "Jane Doe", "email": "jane@example.edu"},
+        "user3": {"username": "bobsmith", "name": "Bob Smith", "email": "bob@example.edu"},
+    }
+    mock_read.return_value = mock_data
+
+    # Act
+    resp = TEST_CLIENT.get(f"{ep.USERS_EPS}/{ep.READ}")
+    resp_json = resp.get_json()
+
+    # Assert
+    assert resp.status_code == OK
+    assert ep.USER_RESP in resp_json
+    assert resp_json[ep.USER_RESP] == mock_data
+    assert resp_json[ep.NUM_RECS] == len(mock_data)
+
+
+@patch('server.endpoints.userqry.search_users_by_name')
+def test_users_search(mock_search):
+    """Test the /users/search endpoint."""
+    # Arrange
+    mock_results = {
+        "user1": {"username": "johndoe", "name": "John Doe", "email": "john@example.edu"},
+        "user2": {"username": "janedoe", "name": "Jane Doe", "email": "jane@example.edu"},
+    }
+    mock_search.return_value = mock_results
+
+    # Act
+    resp = TEST_CLIENT.get(f"{ep.USERS_EPS}/{ep.SEARCH}?q=doe")
+    resp_json = resp.get_json()
+
+    # Assert
+    assert resp.status_code == OK
+    assert ep.USER_RESP in resp_json
+    assert resp_json[ep.USER_RESP] == mock_results
+    assert resp_json[ep.NUM_RECS] == len(mock_results)
+    assert resp_json['search_term'] == 'doe'
+
+
+@patch('server.endpoints.userqry.num_users')
+def test_users_count(mock_count):
+    """Test the /users/count endpoint."""
+    # Arrange
+    mock_count.return_value = 42
+
+    # Act
+    resp = TEST_CLIENT.get(f"{ep.USERS_EPS}/{ep.COUNT}")
+    resp_json = resp.get_json()
+
+    # Assert
+    assert resp.status_code == OK
+    assert resp_json['count'] == 42
+    assert ep.USER_RESP in resp_json
+
+
+@patch('server.endpoints.userqry.create')
+def test_users_create(mock_create):
+    """Test the /users/create endpoint."""
+    # Arrange
+    mock_create.return_value = '507f1f77bcf86cd799439014'
+    user_data = {
+        "username": "testuser",
+        "password": "password123",
+        "name": "Test User",
+        "email": "testuser@example.edu",
+        "age": 25,
+        "bio": "Test bio",
+        "is_verified": False,
+        "location": "NY,USA"
+    }
+
+    # Act
+    resp = TEST_CLIENT.post(
+        f"{ep.USERS_EPS}/{ep.CREATE}",
+        json=user_data,
+    )
+    resp_json = resp.get_json()
+
+    # Assert
+    assert resp.status_code == 201
+    assert ep.MESSAGE in resp_json
+    assert resp_json['id'] == '507f1f77bcf86cd799439014'
+    assert resp_json['user']['username'] == user_data['username']
+    assert resp_json['user']['password'] == '[REDACTED]'  # Password should be redacted
+    mock_create.assert_called_once()
+
+
+@patch('server.endpoints.userqry.delete')
+def test_users_delete_by_username(mock_delete):
+    """Test the /users/delete endpoint."""
+    # Arrange
+    mock_delete.return_value = True
+
+    # Act
+    resp = TEST_CLIENT.delete(
+        f"{ep.USERS_EPS}/{ep.DELETE}?username=testuser"
+    )
+    resp_json = resp.get_json()
+
+    # Assert
+    assert resp.status_code == OK
+    assert ep.MESSAGE in resp_json
+    mock_delete.assert_called_once_with("testuser")
+
+
+@patch('server.endpoints.userqry.delete')
+def test_users_delete_by_id(mock_delete):
+    """Test the /users/delete endpoint with ObjectId."""
+    # Arrange
+    mock_delete.return_value = True
+    object_id = '507f1f77bcf86cd799439014'
+
+    # Act
+    resp = TEST_CLIENT.delete(
+        f"{ep.USERS_EPS}/{ep.DELETE}?username={object_id}"
+    )
+    resp_json = resp.get_json()
+
+    # Assert
+    assert resp.status_code == OK
+    assert ep.MESSAGE in resp_json
+    mock_delete.assert_called_once_with(object_id)
+
+
+@patch('server.endpoints.userqry.delete')
+def test_users_delete_not_found(mock_delete):
+    """Test the /users/delete endpoint when user not found."""
+    # Arrange
+    mock_delete.side_effect = ValueError('User not found: testuser')
+
+    # Act
+    resp = TEST_CLIENT.delete(
+        f"{ep.USERS_EPS}/{ep.DELETE}?username=testuser"
+    )
+    resp_json = resp.get_json()
+
+    # Assert
+    assert resp.status_code == NOT_FOUND
+    assert ep.ERROR in resp_json
+

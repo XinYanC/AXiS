@@ -71,15 +71,12 @@ jobs:
             sleep 3
           done
 
-      # Set up development environment
       - name: Set up development environment
         run: make dev_env
 
-      # Run Python tests
       - name: Run Python tests
         run: make all_tests
 
-      # Deploy to PythonAnywhere if on master branch
       - name: Deploy to PythonAnywhere
         if: github.ref == 'refs/heads/master'
         run: ./deploy.sh
