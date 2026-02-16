@@ -3,7 +3,6 @@
 This file deals with our state-level data.
 """
 from functools import wraps
-
 import data.db_connect as dbc
 from data.db_connect import is_valid_id  # noqa F401
 

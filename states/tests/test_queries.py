@@ -1,8 +1,6 @@
 from copy import deepcopy
-
 from unittest.mock import patch
 import pytest
-
 import states.queries as qry
 
 
