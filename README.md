@@ -83,41 +83,51 @@ All ETL scripts are located in the `ETL/` directory and can be run from the proj
 
 #### Load Countries
 
-Loads country data from a tab-separated CSV file:
+Loads country data from a tab-separated file:
 
 ```bash
-python3 ETL/load_countries.py ETL/countries.csv
+python3 ETL/load_countries.py ETL/countries.tsv
 ```
 
-The CSV file should have columns: `country_name` and `country_code`.
+The file should have columns: `country_name` and `country_code`.
 
 #### Load States
 
 Loads state/province data with latitude and longitude coordinates:
 
 ```bash
-python3 ETL/load_states_lat_long.py ETL/states_lat_long.csv
+python3 ETL/load_states_lat_long.py ETL/states_lat_long.tsv
 ```
 
-The CSV file should have columns: `code`, `latitude`, `longitude`, and `name`. The script automatically adds `country_code: 'USA'` to each state.
+The file should have columns: `code`, `latitude`, `longitude`, and `name`. The script automatically adds `country_code: 'USA'` to each state.
 
 **Note**: If states already exist in the database, the script will raise a duplicate key error. You may need to clear existing states first or modify the script to handle duplicates.
 
 #### Load Cities
 
-Loads city data from a tab-separated CSV file:
+Loads city data from a tab-separated file:
 
 ```bash
-python3 ETL/load_cities.py ETL/cities.csv
+python3 ETL/load_cities.py ETL/cities.tsv
 ```
 
 Or with an optional state_code override (applies the same state_code to all cities):
 
 ```bash
-python3 ETL/load_cities.py ETL/cities.csv CA
+python3 ETL/load_cities.py ETL/cities.tsv CA
 ```
 
 The CSV file should have columns: `city_name` and `state_code`.
+
+#### Load Users
+
+Loads user data from a tab-separated file:
+
+```bash
+python3 ETL/load_users.py ETL/users.tsv
+```
+
+The file should have columns: `username`, `password`, `name`, `age`, `bio`, `is_verified`, `email`, `city`, `state`, `country`.
 
 ## Environment Variables
 

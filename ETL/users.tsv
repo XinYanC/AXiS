@@ -1,0 +1,11 @@
+username	password	name	age	bio	is_verified	email	city	state	country
+mrivera	swap123	Mateo Rivera	23	Enjoys trading gaming gear and accessories	true	mrivera@fordham.edu	Bronx	NY	USA
+tnguyen	frontendfun	Trang Nguyen	21	UI designer who loves swapping art supplies	true	tnguyen@pace.edu	New York	NY	USA
+dcohen	fullstacklife	Daniel Cohen	24	Fullstack dev interested in trading electronics	false	dcohen@cornell.edu	Ithaca	NY	USA
+ahassan	backendboss	Amina Hassan	22	Backend enthusiast swapping textbooks and devices	true	ahassan@stonybrook.edu	Stony Brook	NY	USA
+jmartinez	dormswap22	Jose Martinez	20	Looking to swap dorm furniture and storage items	false	jmartinez@cuny.edu	Queens	NY	USA
+lpetrov	cameratrade	Luka Petrov	25	Photography student trading lenses and tripods	true	lpetrov@fitnyc.edu	New York	NY	USA
+sroberts	fashionswap	Sarah Roberts	21	Interested in clothing swaps and vintage fashion	false	sroberts@newschool.edu	New York	NY	USA
+ypark	gradtrader	Yuna Park	26	Graduate student swapping tablets and accessories	true	ypark@nyu.edu	Brooklyn	NY	USA
+ewright	artswap20	Ethan Wright	22	Trades sketchbooks and design tools	false	ewright@pratt.edu	Brooklyn	NY	USA
+ksharma	keyboardswap	Karan Sharma	23	Tech enthusiast trading keyboards and monitors	true	ksharma@rit.edu	Rochester	NY	USA

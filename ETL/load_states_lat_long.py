@@ -48,7 +48,7 @@ def load(rev_list: list):
 
 def main():
     if len(sys.argv) < 2:
-        print('USAGE: load_states_lat_long.py [csvfile]')
+        print('USAGE: load_states_lat_long.py [tsvfile]')
         exit(1)
     state_list = extract(sys.argv[1])
     rev_list = transform(state_list)

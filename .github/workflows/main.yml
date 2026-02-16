@@ -23,6 +23,28 @@ jobs:
     runs-on: ubuntu-latest
     environment: pa_deploy
 
+    env:
+      CLOUD_MONGO: 0
+      MONGO_HOST: localhost
+      MONGO_PORT: 27017
+      FLASK_ENV: development
+      DEBUG: 1
+
+    # Start MongoDB as a service container
+    services:
+      mongo:
+        # Use official MongoDB image
+        image: mongo:7.0
+        # Map container port to host
+        ports:
+          - 27017:27017
+        # Health check to ensure MongoDB is ready
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - name: Set up Python 3.12
@@ -39,15 +61,25 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
-      - name: Install MongoDB in a Docker container.
-        uses: supercharge/mongodb-github-action@1.8.0
+      # Wait for MongoDB to be ready before running tests
+      - name: Wait for MongoDB
+        run: |
+          echo "Waiting for MongoDB to be ready..."
+          for i in {1..20}; do
+            mongosh --host localhost --eval "db.adminCommand('ping')" && break
+            echo "MongoDB not ready yet, retrying..."
+            sleep 3
+          done
 
-      - name: Set up development environment.
+      # Set up development environment
+      - name: Set up development environment
         run: make dev_env
 
-      - name: Run Python tests.
+      # Run Python tests
+      - name: Run Python tests
         run: make all_tests
 
+      # Deploy to PythonAnywhere if on master branch
       - name: Deploy to PythonAnywhere
         if: github.ref == 'refs/heads/master'
         run: ./deploy.sh
