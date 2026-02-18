@@ -6,6 +6,7 @@ DB_DIR = data
 SEC_DIR = security
 CITIES_DIR = cities
 COUNTRIES_DIR = countries
+LISTINGS_DIR = listings
 STATES_DIR = states
 USERS_DIR = users
 REQ_DIR = .
@@ -24,6 +25,7 @@ all_tests: FORCE
 	cd $(SEC_DIR); make tests
 	cd $(CITIES_DIR); make tests
 	cd $(COUNTRIES_DIR); make tests
+	cd $(LISTINGS_DIR); make tests
 	cd $(STATES_DIR); make tests
 	cd $(USERS_DIR); make tests
 
