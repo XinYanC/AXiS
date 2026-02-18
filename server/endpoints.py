@@ -5,6 +5,7 @@ The endpoint called `endpoints` will return all available endpoints.
 
 import cities.queries as cityqry
 import countries.queries as countryqry
+import listings.queries as listingqry
 import states.queries as stateqry
 import users.queries as userqry
 from flask import Flask, request
@@ -44,6 +45,9 @@ STATE_RESP = 'States'
 
 USERS_EPS = '/users'
 USER_RESP = 'User'
+
+LISTINGS_EPS = '/listings'
+LISTING_RESP = 'Listings'
 
 # ==================== SWAGGER MODELS ====================
 
@@ -94,6 +98,23 @@ user_model = api.model('User', {
     'location': fields.String(
         required=False, description='Location (e.g., "NY,USA")'
     ),
+})
+
+listing_model = api.model('Listing', {
+    'title': fields.String(required=True, description='Listing title'),
+    'description': fields.String(required=True, description='Listing description'),
+    'images': fields.List(
+        fields.String,
+        description='List of image URLs (optional)',
+        default=[]
+    ),
+    'transaction_type': fields.String(
+        required=True,
+        description='One of: buy, sell, donation, pickup, drop-off'
+    ),
+    'owner': fields.String(required=True, description='Owner identifier (e.g. email)'),
+    'meetup_location': fields.String(required=True, description='Where to meet for the transaction'),
+    'price': fields.Float(description='Price (optional)', default=None),
 })
 
 
@@ -536,6 +557,30 @@ class UsersRead(Resource):
         }
 
 
+# ==================== LISTINGS ENDPOINTS ====================
+
+@api.route(f'{LISTINGS_EPS}/{READ}')
+class ListingsRead(Resource):
+    """
+    Interact with listings collection
+    """
+    def get(self):
+        """
+        Returns all listings in the database.
+        """
+        try:
+            listings = listingqry.read()
+            num_recs = len(listings)
+        except ConnectionError as e:
+            return {ERROR: str(e)}, 500
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+        return {
+            LISTING_RESP: listings,
+            NUM_RECS: num_recs,
+        }
+
+
 @api.route(f'{USERS_EPS}/{COUNT}')
 class UsersCount(Resource):
     """
@@ -550,6 +595,27 @@ class UsersCount(Resource):
             return {
                 'count': count,
                 USER_RESP: f'Total users: {count}',
+            }
+        except ConnectionError as e:
+            return {ERROR: str(e)}, 500
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+
+
+@api.route(f'{LISTINGS_EPS}/{COUNT}')
+class ListingsCount(Resource):
+    """
+    Get count of listings
+    """
+    def get(self):
+        """
+        Returns the total number of listings in the database.
+        """
+        try:
+            count = listingqry.num_listings()
+            return {
+                'count': count,
+                LISTING_RESP: f'Total listings: {count}',
             }
         except ConnectionError as e:
             return {ERROR: str(e)}, 500
@@ -576,6 +642,36 @@ class UsersSearch(Resource):
             num_recs = len(users)
             return {
                 USER_RESP: users,
+                NUM_RECS: num_recs,
+                'search_term': search_term,
+            }
+        except ValueError as e:
+            return {ERROR: str(e)}, 400
+        except ConnectionError as e:
+            return {ERROR: str(e)}, 500
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+
+
+@api.route(f'{LISTINGS_EPS}/{SEARCH}')
+class ListingsSearch(Resource):
+    """
+    Search listings by title
+    """
+    @api.param('q', 'Search term (case-insensitive)', required=True)
+    def get(self):
+        """
+        Search for listings by title (case-insensitive partial match).
+        Query param: 'q' (search term)
+        """
+        try:
+            search_term = request.args.get('q')
+            if not search_term:
+                return {ERROR: 'Query parameter "q" is required'}, 400
+            listings = listingqry.search_listings_by_title(search_term)
+            num_recs = len(listings)
+            return {
+                LISTING_RESP: listings,
                 NUM_RECS: num_recs,
                 'search_term': search_term,
             }
@@ -631,6 +727,37 @@ class UsersCreate(Resource):
             return {ERROR: str(e)}, 500
 
 
+@api.route(f'{LISTINGS_EPS}/{CREATE}')
+class ListingsCreate(Resource):
+    """
+    Create a new listing
+    """
+    @api.expect(listing_model)
+    def post(self):
+        """
+        Create a new listing.
+        Required JSON body: title, description, transaction_type, owner, meetup_location.
+        Optional: images (list), price (number).
+        """
+        try:
+            listing_data = request.json
+            if not listing_data:
+                return {ERROR: 'Request body must contain JSON data'}, 400
+            original_data = dict(listing_data)
+            rec_id = listingqry.create(listing_data)
+            return {
+                MESSAGE: 'Listing created successfully',
+                'id': str(rec_id),
+                'listing': original_data,
+            }, 201
+        except ValueError as e:
+            return {ERROR: str(e)}, 400
+        except ConnectionError as e:
+            return {ERROR: str(e)}, 500
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+
+
 @api.route(f'{USERS_EPS}/{DELETE}')
 class UsersDelete(Resource):
     """
@@ -651,6 +778,33 @@ class UsersDelete(Resource):
             userqry.delete(username_or_id)
             return {
                 MESSAGE: f'User "{username_or_id}" deleted successfully',
+            }
+        except ValueError as e:
+            return {ERROR: str(e)}, 404
+        except ConnectionError as e:
+            return {ERROR: str(e)}, 500
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+
+
+@api.route(f'{LISTINGS_EPS}/{DELETE}')
+class ListingsDelete(Resource):
+    """
+    Delete a listing
+    """
+    @api.param('id', 'Listing MongoDB _id', required=True)
+    def delete(self):
+        """
+        Delete a listing by its ID.
+        Query param: 'id' (MongoDB _id)
+        """
+        try:
+            listing_id = request.args.get('id')
+            if not listing_id:
+                return {ERROR: 'Query parameter "id" is required'}, 400
+            listingqry.delete(listing_id)
+            return {
+                MESSAGE: f'Listing "{listing_id}" deleted successfully',
             }
         except ValueError as e:
             return {ERROR: str(e)}, 404
