@@ -105,15 +105,21 @@ listing_model = api.model('Listing', {
     'description': fields.String(required=True, description='Listing description'),
     'images': fields.List(
         fields.String,
-        description='List of image URLs (optional)',
+        description='Image URLs (optional)',
         default=[]
     ),
     'transaction_type': fields.String(
         required=True,
         description='One of: buy, sell, donation, pickup, drop-off'
     ),
-    'owner': fields.String(required=True, description='Owner identifier (e.g. email)'),
-    'meetup_location': fields.String(required=True, description='Where to meet for the transaction'),
+    'owner': fields.String(
+        required=True,
+        description='Owner identifier (e.g. email)'
+    ),
+    'meetup_location': fields.String(
+        required=True,
+        description='Where to meet for the transaction'
+    ),
     'price': fields.Float(description='Price (optional)', default=None),
 })
 
@@ -736,8 +742,8 @@ class ListingsCreate(Resource):
     def post(self):
         """
         Create a new listing.
-        Required JSON body: title, description, transaction_type, owner, meetup_location.
-        Optional: images (list), price (number).
+        Required JSON body: title, description, transaction_type, owner,
+        meetup_location. Optional: images (list), price (number).
         """
         try:
             listing_data = request.json
