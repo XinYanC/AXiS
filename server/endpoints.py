@@ -101,8 +101,12 @@ user_model = api.model('User', {
 })
 
 listing_model = api.model('Listing', {
-    'title': fields.String(required=True, description='Listing title'),
-    'description': fields.String(required=True, description='Listing description'),
+    'title': fields.String(
+        required=True, description='Listing title'
+    ),
+    'description': fields.String(
+        required=True, description='Listing description'
+    ),
     'images': fields.List(
         fields.String,
         description='Image URLs (optional)',

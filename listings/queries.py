@@ -71,27 +71,38 @@ def is_valid_id(_id: str) -> bool:
 def _validate_listing(listing: dict) -> None:
     if not isinstance(listing, dict):
         raise ValueError("Listing must be a dictionary.")
-    if TITLE not in listing or not listing.get(TITLE) or not str(listing[TITLE]).strip():
+    title = listing.get(TITLE)
+    if TITLE not in listing or not title or not str(title).strip():
         raise ValueError("Listing must have a non-empty 'title'.")
-    if DESCRIPTION not in listing or not listing.get(DESCRIPTION) or not str(listing[DESCRIPTION]).strip():
+    desc = listing.get(DESCRIPTION)
+    if DESCRIPTION not in listing or not desc or not str(desc).strip():
         raise ValueError("Listing must have a non-empty 'description'.")
     if TRANSACTION_TYPE not in listing or not listing.get(TRANSACTION_TYPE):
         raise ValueError("Listing must have a 'transaction_type'.")
     tt = str(listing[TRANSACTION_TYPE]).strip().lower()
     if tt not in VALID_TRANSACTION_TYPES:
+        valid_types = sorted(VALID_TRANSACTION_TYPES)
+        got = repr(listing[TRANSACTION_TYPE])
         raise ValueError(
-            f"transaction_type must be one of {sorted(VALID_TRANSACTION_TYPES)}, got {listing[TRANSACTION_TYPE]!r}"
+            f"transaction_type must be one of {valid_types}, "
+            f"got {got}"
         )
-    if OWNER not in listing or not listing.get(OWNER) or not str(listing[OWNER]).strip():
+    owner = listing.get(OWNER)
+    if OWNER not in listing or not owner or not str(owner).strip():
         raise ValueError("Listing must have a non-empty 'owner'.")
-    if MEETUP_LOCATION not in listing or not listing.get(MEETUP_LOCATION) or not str(listing[MEETUP_LOCATION]).strip():
+    loc = listing.get(MEETUP_LOCATION)
+    if MEETUP_LOCATION not in listing or not loc or not str(loc).strip():
         raise ValueError("Listing must have a non-empty 'meetup_location'.")
     if IMAGES in listing and not isinstance(listing[IMAGES], list):
         raise ValueError("'images' must be a list of strings.")
     if IMAGES in listing and listing[IMAGES]:
         for i, url in enumerate(listing[IMAGES]):
             if not isinstance(url, str):
-                raise ValueError(f"'images' must be a list of strings, got {type(url).__name__} at index {i}.")
+                url_type = type(url).__name__
+                raise ValueError(
+                    f"'images' must be a list of strings, "
+                    f"got {url_type} at index {i}."
+                )
     if PRICE in listing and listing[PRICE] is not None:
         try:
             float(listing[PRICE])
@@ -121,7 +132,8 @@ def create(listing: dict, reload=True) -> str:
 
 def delete(listing_id: str) -> bool:
     if not isinstance(listing_id, str):
-        raise ValueError(f"Listing ID must be a string, got {type(listing_id)}")
+        id_type = type(listing_id)
+        raise ValueError(f"Listing ID must be a string, got {id_type}")
     try:
         obj_id = ObjectId(listing_id)
     except Exception:
