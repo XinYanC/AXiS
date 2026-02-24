@@ -44,6 +44,12 @@ def load_cache():
         cache[key] = state
 
 
+def clear_cache():
+    """Clear the cache. Useful for testing."""
+    global cache
+    cache = None
+
+
 @needs_cache
 def num_states() -> int:
     return len(cache)

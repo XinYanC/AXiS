@@ -57,6 +57,12 @@ def load_cache():
         cache[key] = user
 
 
+def clear_cache():
+    """Clear the cache. Useful for testing."""
+    global cache
+    cache = None
+
+
 @needs_cache
 def num_users() -> int:
     return len(cache)

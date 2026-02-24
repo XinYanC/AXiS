@@ -28,6 +28,7 @@ def temp_user_no_del():
 def temp_user_unique():
     temp_rec = get_temp_rec()
     safe_delete(temp_rec)
+    qry.clear_cache()
     rec_id = qry.create(temp_rec)
     yield rec_id, temp_rec
     safe_delete(temp_rec)
@@ -48,6 +49,7 @@ def sample_users():
     # Clean up any existing users first
     for user in users_to_create:
         safe_delete(user)
+    qry.clear_cache()
     # Now create the users
     for user in users_to_create:
         user_id = qry.create(user)
@@ -151,6 +153,7 @@ def test_count():
     # Clean up any existing user first
     temp_rec = get_temp_rec()
     safe_delete(temp_rec)
+    qry.clear_cache()
     # get the count
     old_count = qry.num_users()
     # add a record
@@ -163,6 +166,7 @@ def test_good_create():
     # Clean up any existing user first
     temp_rec = get_temp_rec()
     safe_delete(temp_rec)
+    qry.clear_cache()
     old_count = qry.num_users()
     new_rec_id = qry.create(temp_rec)
 
@@ -177,6 +181,7 @@ def test_create_dup_key():
     # Clean up any existing user first
     temp_rec = get_temp_rec()
     safe_delete(temp_rec)
+    qry.clear_cache()
     qry.create(get_temp_rec())
     with pytest.raises(ValueError):
         qry.create(get_temp_rec())
@@ -256,6 +261,7 @@ def test_create_duplicate_user():
     # Clean up any existing records first
     safe_delete(user1)
     safe_delete(user2)
+    qry.clear_cache()
     
     rec_id1 = qry.create(user1)
     rec_id2 = qry.create(user2)
@@ -279,6 +285,7 @@ def test_create_multiple_users_and_count():
     # Clean up any existing records first
     for user in test_users:
         safe_delete(user)
+    qry.clear_cache()
     
     initial_count = qry.num_users()
     created_users = []

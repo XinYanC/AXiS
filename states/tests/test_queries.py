@@ -20,6 +20,7 @@ def temp_state_no_del():
     temp_rec = get_temp_rec()
     # Clean up any existing record first
     safe_delete(temp_rec)
+    qry.clear_cache()
     qry.create(get_temp_rec())
     return temp_rec
 
@@ -29,6 +30,7 @@ def temp_state():
     temp_rec = get_temp_rec()
     # Clean up any existing record first
     safe_delete(temp_rec)
+    qry.clear_cache()
     new_rec_id = qry.create(get_temp_rec())
     yield new_rec_id
     safe_delete(temp_rec)
@@ -43,6 +45,7 @@ def test_count():
     # Clean up any existing state first
     temp_rec = get_temp_rec()
     safe_delete(temp_rec)
+    qry.clear_cache()
     # get the count
     old_count = qry.num_states()
     # add a record
@@ -55,6 +58,7 @@ def test_good_create():
     # Clean up any existing state first
     temp_rec = get_temp_rec()
     safe_delete(temp_rec)
+    qry.clear_cache()
     old_count = qry.num_states()
     new_rec_id = qry.create(get_temp_rec())
     assert qry.is_valid_id(new_rec_id)
@@ -66,6 +70,7 @@ def test_create_dup_key():
     # Clean up any existing state first
     temp_rec = get_temp_rec()
     safe_delete(temp_rec)
+    qry.clear_cache()
     qry.create(get_temp_rec())
     with pytest.raises(ValueError):
         qry.create(get_temp_rec())
@@ -116,6 +121,7 @@ def test_create_returns_unique_ids():
     temp_rec = get_temp_rec()
     safe_delete(temp_rec)
     safe_delete({'code': 'CA', 'country_code': 'USA'})
+    qry.clear_cache()
     
     rec1 = get_temp_rec()
     # Create first state
@@ -136,6 +142,7 @@ def test_create_returns_unique_ids():
     # Clean up these too
     safe_delete(rec1)
     safe_delete(rec2)
+    qry.clear_cache()
     
     id1 = qry.create(rec1)
     id2 = qry.create(rec2)
@@ -163,6 +170,7 @@ def test_create_same_name_different_code():
     temp_rec = get_temp_rec()
     safe_delete(temp_rec)
     safe_delete({'code': 'CA', 'country_code': 'USA'})
+    qry.clear_cache()
 
     rec1 = get_temp_rec()
     rec2 = get_temp_rec()
