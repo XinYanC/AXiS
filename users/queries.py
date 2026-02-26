@@ -6,6 +6,7 @@ from functools import wraps
 from bson import ObjectId
 import data.db_connect as dbc
 from data.db_connect import is_valid_id  # noqa F401
+import bcrypt
 
 
 MIN_ID_LEN = 1
@@ -81,7 +82,10 @@ def create(user, reload=True):
     if EMAIL in user and user[EMAIL]:
         if not user[EMAIL].endswith('.edu'):
             raise ValueError("Email must end in .edu")
-
+    if PASSWORD in user and user[PASSWORD]:
+        password_bytes = user[PASSWORD].encode('utf-8')
+        user[PASSWORD] = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')
+    
     rec_id = dbc.create(USER_COLLECTION, user)
     if reload:
         load_cache()
