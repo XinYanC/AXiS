@@ -111,6 +111,37 @@ def test_create_invalid_inputs(listing_data, match):
     with pytest.raises(ValueError, match=match):
         qry.create(listing_data)
 
+@pytest.mark.parametrize("bad_type", [
+    'swap', 'trade', 'free', 'rent', '', '  ', None, 123,
+])
+def test_create_invalid_transaction_type(bad_type):
+    listing = {
+        qry.TITLE: 'Test Item',
+        qry.DESCRIPTION: 'A description',
+        qry.TRANSACTION_TYPE: bad_type,
+        qry.OWNER: 'x@nyu.edu',
+        qry.MEETUP_LOCATION: 'Library',
+    }
+    with pytest.raises(ValueError):
+        qry.create(listing)
+
+
+@pytest.mark.parametrize("valid_type", list(qry.VALID_TRANSACTION_TYPES))
+def test_create_all_valid_transaction_types(valid_type):
+    listing = {
+        qry.TITLE: 'Test Item',
+        qry.DESCRIPTION: 'A description',
+        qry.TRANSACTION_TYPE: valid_type,
+        qry.OWNER: 'x@nyu.edu',
+        qry.MEETUP_LOCATION: 'Library',
+    }
+    qry.clear_cache()
+    rec_id = qry.create(listing)
+    try:
+        assert qry.is_valid_id(rec_id)
+    finally:
+        safe_delete(rec_id)
+
 
 def test_delete(temp_listing_unique):
     rec_id, _ = temp_listing_unique
