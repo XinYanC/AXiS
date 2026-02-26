@@ -1,0 +1,20 @@
+[
+    {
+      "title": "Calculus textbook",
+      "description": "Stewart 9th ed, like new",
+      "images": [],
+      "transaction_type": "sell",
+      "owner": "student@nyu.edu",
+      "meetup_location": "Bobst Library",
+      "price": 25.00
+    },
+    {
+      "title": "Desk lamp",
+      "description": "LED, good condition",
+      "images": [],
+      "transaction_type": "sell",
+      "owner": "seller@nyu.edu",
+      "meetup_location": "Dorm A",
+      "price": 15.50
+    }
+  ]
