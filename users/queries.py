@@ -82,7 +82,6 @@ def create(user, reload=True):
     if EMAIL in user and user[EMAIL]:
         if not user[EMAIL].endswith('.edu'):
             raise ValueError("Email must end in .edu")
-    
     if PASSWORD in user and user[PASSWORD]:
         password_bytes = user[PASSWORD].encode('utf-8')
         hashed = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
