@@ -125,6 +125,10 @@ listing_model = api.model('Listing', {
         description='Where to meet for the transaction'
     ),
     'price': fields.Float(description='Price (optional)', default=None),
+    'num_likes': fields.Integer(
+        description='Number of likes (optional, default 0)',
+        default=0
+    ),
 })
 
 

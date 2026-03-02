@@ -19,6 +19,7 @@ TRANSACTION_TYPE = 'transaction_type'
 OWNER = 'owner'
 MEETUP_LOCATION = 'meetup_location'
 PRICE = 'price'
+NUM_LIKES = 'num_likes'
 CREATED_AT = 'created_at'
 
 VALID_TRANSACTION_TYPES = {'buy', 'sell', 'donation', 'pickup', 'drop-off'}
@@ -31,6 +32,7 @@ SAMPLE_LISTING = {
     OWNER: 'student@nyu.edu',
     MEETUP_LOCATION: 'Bobst Library',
     PRICE: 25.00,
+    NUM_LIKES: 0,
 }
 
 cache = None
@@ -108,6 +110,13 @@ def _validate_listing(listing: dict) -> None:
             float(listing[PRICE])
         except (TypeError, ValueError):
             raise ValueError("'price' must be a number or null.")
+    if NUM_LIKES in listing and listing[NUM_LIKES] is not None:
+        try:
+            n = int(listing[NUM_LIKES])
+            if n < 0:
+                raise ValueError("'num_likes' must be a non-negative integer.")
+        except TypeError:
+            raise ValueError("'num_likes' must be a non-negative integer.")
 
 
 @needs_cache
@@ -123,6 +132,8 @@ def create(listing: dict, reload=True) -> str:
         doc[IMAGES] = []
     if PRICE not in doc:
         doc[PRICE] = None
+    if NUM_LIKES not in doc or doc[NUM_LIKES] is None:
+        doc[NUM_LIKES] = 0
     doc[CREATED_AT] = datetime.now(timezone.utc).isoformat()
     rec_id = dbc.create(LISTING_COLLECTION, doc)
     if reload:

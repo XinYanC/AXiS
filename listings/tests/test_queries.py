@@ -94,6 +94,9 @@ def test_good_create():
         assert created[qry.TRANSACTION_TYPE] == qry.SAMPLE_LISTING[qry.TRANSACTION_TYPE]
         assert created[qry.OWNER] == qry.SAMPLE_LISTING[qry.OWNER]
         assert qry.CREATED_AT in created
+        assert created.get(qry.NUM_LIKES, 0) == qry.SAMPLE_LISTING.get(
+            qry.NUM_LIKES, 0
+        )
     finally:
         safe_delete(new_rec_id)
 
@@ -184,6 +187,7 @@ def test_read_returns_expected_fields(temp_listing_unique):
         assert qry.OWNER in data
         assert qry.MEETUP_LOCATION in data
         assert qry.CREATED_AT in data
+        assert qry.NUM_LIKES in data
 
 
 def test_is_valid_id(temp_listing_unique):
@@ -240,6 +244,45 @@ def test_create_with_price_and_images():
         assert created[qry.IMAGES] == ['https://example.com/1.jpg']
     finally:
         safe_delete(rec_id)
+
+
+def test_create_with_num_likes():
+    """Test creating a listing with num_likes and that it defaults to 0."""
+    temp_rec = get_temp_rec()
+    qry.clear_cache()
+    rec_id = qry.create(temp_rec)
+    try:
+        listings = qry.read()
+        created = listings[rec_id]
+        assert created[qry.NUM_LIKES] == 0
+    finally:
+        safe_delete(rec_id)
+    # Create with explicit num_likes
+    temp_rec2 = get_temp_rec()
+    temp_rec2[qry.OWNER] = 'other@nyu.edu'
+    temp_rec2[qry.NUM_LIKES] = 5
+    rec_id2 = qry.create(temp_rec2)
+    try:
+        listings = qry.read()
+        created = listings[rec_id2]
+        assert created[qry.NUM_LIKES] == 5
+    finally:
+        safe_delete(rec_id2)
+
+
+@pytest.mark.parametrize("bad_num_likes", [-1])
+def test_create_invalid_num_likes(bad_num_likes):
+    """num_likes must be a non-negative integer."""
+    listing = {
+        qry.TITLE: 'Test Item',
+        qry.DESCRIPTION: 'A description',
+        qry.TRANSACTION_TYPE: 'sell',
+        qry.OWNER: 'x@nyu.edu',
+        qry.MEETUP_LOCATION: 'Library',
+        qry.NUM_LIKES: bad_num_likes,
+    }
+    with pytest.raises(ValueError, match='num_likes'):
+        qry.create(listing)
 
 
 def test_create_sets_created_at():
