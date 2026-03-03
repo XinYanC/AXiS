@@ -5,6 +5,7 @@ from http.client import (
     NOT_FOUND,
     OK,
     SERVICE_UNAVAILABLE,
+    UNAUTHORIZED,
 )
 
 from unittest.mock import patch
@@ -512,4 +513,72 @@ def test_users_delete_not_found(mock_delete):
     # Assert
     assert resp.status_code == NOT_FOUND
     assert ep.ERROR in resp_json
+
+
+# ==================== AUTH ENDPOINT TESTS ====================
+
+@patch('server.endpoints.userqry.authenticate')
+def test_auth_login_success(mock_authenticate):
+    """Test POST /auth/login with valid email and password."""
+    mock_user = {
+        'username': 'johndoe',
+        'name': 'John Doe',
+        'email': 'johndoe@example.edu',
+    }
+    mock_authenticate.return_value = mock_user
+
+    resp = TEST_CLIENT.post(
+        ep.AUTH_LOGIN_EP,
+        json={'email': 'johndoe@example.edu', 'password': 'secret123'},
+    )
+    resp_json = resp.get_json()
+
+    assert resp.status_code == OK
+    assert ep.USER_RESP in resp_json
+    assert resp_json[ep.USER_RESP] == mock_user
+    assert ep.MESSAGE in resp_json
+    assert 'password' not in resp_json[ep.USER_RESP]
+    mock_authenticate.assert_called_once_with(
+        'johndoe@example.edu', 'secret123'
+    )
+
+
+@patch('server.endpoints.userqry.authenticate')
+def test_auth_login_invalid_credentials(mock_authenticate):
+    """Test POST /auth/login with wrong email or password."""
+    mock_authenticate.return_value = None
+
+    resp = TEST_CLIENT.post(
+        ep.AUTH_LOGIN_EP,
+        json={'email': 'wrong@example.edu', 'password': 'wrong'},
+    )
+    resp_json = resp.get_json()
+
+    assert resp.status_code == UNAUTHORIZED
+    assert ep.ERROR in resp_json
+    assert 'Invalid email or password' in resp_json[ep.ERROR]
+
+
+def test_auth_login_missing_email():
+    """Test POST /auth/login without email returns 400."""
+    resp = TEST_CLIENT.post(
+        ep.AUTH_LOGIN_EP,
+        json={'password': 'secret123'},
+    )
+    resp_json = resp.get_json()
+    assert resp.status_code == BAD_REQUEST
+    assert ep.ERROR in resp_json
+    assert 'Email' in resp_json[ep.ERROR]
+
+
+def test_auth_login_missing_password():
+    """Test POST /auth/login without password returns 400."""
+    resp = TEST_CLIENT.post(
+        ep.AUTH_LOGIN_EP,
+        json={'email': 'johndoe@example.edu'},
+    )
+    resp_json = resp.get_json()
+    assert resp.status_code == BAD_REQUEST
+    assert ep.ERROR in resp_json
+    assert 'Password' in resp_json[ep.ERROR]
 

@@ -122,6 +122,44 @@ def read() -> dict:
 
 
 @needs_cache
+def find_user_by_email(email: str):
+    """
+    Return the user dict for the given email, or None if not found.
+    Email match is case-insensitive.
+    """
+    if not email or not isinstance(email, str) or not email.strip():
+        return None
+    email_lower = email.strip().lower()
+    for user in cache.values():
+        if (user.get(EMAIL) or '').strip().lower() == email_lower:
+            return user
+    return None
+
+
+@needs_cache
+def authenticate(email: str, password: str):
+    """
+    Authenticate a user by email and password.
+    Returns the user dict (without password field) if valid, else None.
+    """
+    if not password or not isinstance(password, str):
+        return None
+    user = find_user_by_email(email)
+    if not user or PASSWORD not in user or not user[PASSWORD]:
+        return None
+    hashed = user[PASSWORD]
+    # bcrypt.checkpw() needs bytes; stored hash may be str from DB
+    if isinstance(hashed, str):
+        hashed = hashed.encode('utf-8')
+    if not bcrypt.checkpw(password.encode('utf-8'), hashed):
+        return None
+    # Return a copy of user without the password field
+    out = dict(user)
+    out.pop(PASSWORD, None)
+    return out
+
+
+@needs_cache
 def search_users_by_name(search_term: str) -> dict:
     """
     Search for users by name (case-insensitive partial match).

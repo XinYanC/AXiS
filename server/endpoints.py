@@ -49,6 +49,8 @@ USER_RESP = 'User'
 LISTINGS_EPS = '/listings'
 LISTING_RESP = 'Listings'
 
+AUTH_LOGIN_EP = '/auth/login'
+
 # ==================== SWAGGER MODELS ====================
 
 city_model = api.model('City', {
@@ -128,6 +130,15 @@ listing_model = api.model('Listing', {
     'num_likes': fields.Integer(
         description='Number of likes (optional, default 0)',
         default=0
+    ),
+})
+
+login_model = api.model('Login', {
+    'email': fields.String(
+        required=True, description='User email (.edu)'
+    ),
+    'password': fields.String(
+        required=True, description='Password'
     ),
 })
 
@@ -822,6 +833,40 @@ class ListingsDelete(Resource):
             }
         except ValueError as e:
             return {ERROR: str(e)}, 404
+        except ConnectionError as e:
+            return {ERROR: str(e)}, 500
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+
+
+# ==================== AUTH ENDPOINTS ====================
+
+@api.route(AUTH_LOGIN_EP)
+class AuthLogin(Resource):
+    """
+    Authenticate user by email and password.
+    """
+    @api.expect(login_model)
+    def post(self):
+        """
+        Login with email and password.
+        Request body: {"email": "user@example.edu", "password": "plaintext"}
+        Returns user object (without password) on success, 401 on failure.
+        """
+        try:
+            data = request.json
+            if not data:
+                return {ERROR: 'Request body must contain JSON'}, 400
+            email = data.get('email')
+            password = data.get('password')
+            if not email:
+                return {ERROR: 'Email is required'}, 400
+            if not password:
+                return {ERROR: 'Password is required'}, 400
+            user = userqry.authenticate(email, password)
+            if not user:
+                return {ERROR: 'Invalid email or password'}, 401
+            return {USER_RESP: user, MESSAGE: 'Login successful'}, 200
         except ConnectionError as e:
             return {ERROR: str(e)}, 500
         except Exception as e:
