@@ -129,6 +129,16 @@ python3 ETL/load_users.py ETL/users.tsv
 
 The file should have columns: `username`, `password`, `name`, `age`, `bio`, `is_verified`, `email`, `city`, `state`, `country`.
 
+#### Load Listings
+
+Loads marketplace listing data from a tab-separated file:
+
+```bash
+python3 ETL/load_listings.py ETL/listings.tsv
+```
+
+The file should have columns: `title`, `description`, `transaction_type`, `owner`, `meetup_location`, and optionally `images`, `price`, `num_likes`, `created_at`. The `owner` field should match a username from the users collection (load users first).
+
 ## Environment Variables
 
 To use a cloud MongoDB deployment, you need to set environment variables:
