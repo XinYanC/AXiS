@@ -33,6 +33,7 @@ DELETE = 'delete'
 UPDATE = 'update'
 SEARCH = 'search'
 COUNT = 'count'
+BY_USER = 'by-user'
 
 ENDPOINT_EP = '/endpoints'
 ENDPOINT_RESP = 'Available endpoints'
@@ -821,6 +822,36 @@ class ListingsSearch(Resource):
                 LISTING_RESP: listings,
                 NUM_RECS: num_recs,
                 'search_term': search_term,
+            }
+        except ValueError as e:
+            return {ERROR: str(e)}, 400
+        except ConnectionError as e:
+            return {ERROR: str(e)}, 500
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+
+
+@api.route(f'{LISTINGS_EPS}/{BY_USER}')
+class ListingsByUser(Resource):
+    """
+    Get listings by owner username
+    """
+    @api.param('username', 'Listing owner username', required=True)
+    def get(self):
+        """
+        Return all listings for a given owner username.
+        Query param: 'username'
+        """
+        try:
+            username = request.args.get('username')
+            if not username:
+                return {ERROR: 'Query parameter "username" is required'}, 400
+            listings = listingqry.search_listings_by_owner(username)
+            num_recs = len(listings)
+            return {
+                LISTING_RESP: listings,
+                NUM_RECS: num_recs,
+                'username': username,
             }
         except ValueError as e:
             return {ERROR: str(e)}, 400

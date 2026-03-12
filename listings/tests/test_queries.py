@@ -231,6 +231,33 @@ def test_search_listings_by_title_invalid_input():
         qry.search_listings_by_title(None)
 
 
+def test_search_listings_by_owner_returns_all_matches(monkeypatch):
+    sample_cache = {
+        'id1': {qry.TITLE: 'Book A', qry.OWNER: 'testuser'},
+        'id2': {qry.TITLE: 'Book B', qry.OWNER: 'TestUser'},
+        'id3': {qry.TITLE: 'Book C', qry.OWNER: 'otheruser'},
+    }
+    monkeypatch.setattr(qry, 'cache', sample_cache)
+
+    results = qry.search_listings_by_owner('testuser')
+
+    assert isinstance(results, dict)
+    assert set(results.keys()) == {'id1', 'id2'}
+    assert all(
+        (listing.get(qry.OWNER) or '').lower() == 'testuser'
+        for listing in results.values()
+    )
+
+
+def test_search_listings_by_owner_invalid_input(monkeypatch):
+    monkeypatch.setattr(qry, 'cache', {'dummy': {}})
+
+    with pytest.raises(ValueError, match='Owner must be a string'):
+        qry.search_listings_by_owner(123)
+    with pytest.raises(ValueError, match='Owner cannot be empty'):
+        qry.search_listings_by_owner('   ')
+
+
 def test_create_with_price_and_images():
     temp_rec = get_temp_rec()
     temp_rec[qry.PRICE] = 10.5

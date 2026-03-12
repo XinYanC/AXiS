@@ -613,6 +613,37 @@ def test_listings_search(mock_search):
     mock_search.assert_called_once_with('textbook')
 
 
+@patch('server.endpoints.listingqry.search_listings_by_owner')
+def test_listings_by_user(mock_search_by_owner):
+    """Test GET /listings/by-user endpoint."""
+    mock_results = {
+        'id1': {'title': 'Calculus Textbook', 'owner': 'testuser'},
+        'id2': {'title': 'Desk Lamp', 'owner': 'testuser'},
+    }
+    mock_search_by_owner.return_value = mock_results
+
+    resp = TEST_CLIENT.get(
+        f"{ep.LISTINGS_EPS}/{ep.BY_USER}?username=testuser"
+    )
+    resp_json = resp.get_json()
+
+    assert resp.status_code == OK
+    assert ep.LISTING_RESP in resp_json
+    assert resp_json[ep.LISTING_RESP] == mock_results
+    assert resp_json[ep.NUM_RECS] == len(mock_results)
+    assert resp_json['username'] == 'testuser'
+    mock_search_by_owner.assert_called_once_with('testuser')
+
+
+def test_listings_by_user_missing_username():
+    """Test GET /listings/by-user without username returns 400."""
+    resp = TEST_CLIENT.get(f"{ep.LISTINGS_EPS}/{ep.BY_USER}")
+    resp_json = resp.get_json()
+
+    assert resp.status_code == BAD_REQUEST
+    assert ep.ERROR in resp_json
+
+
 @patch('server.endpoints.listingqry.create')
 def test_listings_create(mock_create):
     """Test POST /listings/create endpoint."""

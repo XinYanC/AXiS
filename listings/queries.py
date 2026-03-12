@@ -263,6 +263,25 @@ def search_listings_by_title(search_term: str) -> dict:
     return matching
 
 
+@needs_cache
+def search_listings_by_owner(owner: str) -> dict:
+    """
+    Return all listings that belong to a specific owner/username.
+    Match is case-insensitive exact match on the owner field.
+    """
+    if not isinstance(owner, str):
+        raise ValueError(f'Owner must be a string, got {type(owner)}')
+    owner_lower = owner.strip().lower()
+    if not owner_lower:
+        raise ValueError('Owner cannot be empty')
+    matching = {}
+    for key, listing_data in cache.items():
+        listing_owner = (listing_data.get(OWNER) or '').strip().lower()
+        if listing_owner == owner_lower:
+            matching[key] = listing_data
+    return matching
+
+
 def main():
     print(read())
 
