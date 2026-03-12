@@ -311,3 +311,26 @@ def test_main_prints_read(monkeypatch, capsys):
 def test_delete_rejects_non_string():
     with pytest.raises(ValueError, match='Listing ID must be a string'):
         qry.delete(123)
+
+
+def test_update_by_id(temp_listing_unique):
+    """Update listing by id; allowed fields are applied."""
+    rec_id, rec = temp_listing_unique
+    updated = qry.update(rec_id, {qry.TITLE: 'Updated Title', qry.PRICE: 99.0})
+    assert updated.get(qry.TITLE) == 'Updated Title'
+    assert updated.get(qry.PRICE) == 99.0
+    assert rec_id in qry.read()
+    assert qry.read()[rec_id][qry.TITLE] == 'Updated Title'
+
+
+def test_update_partial(temp_listing_unique):
+    """Update only one field (e.g. num_likes)."""
+    rec_id, rec = temp_listing_unique
+    updated = qry.update(rec_id, {qry.NUM_LIKES: 10})
+    assert updated.get(qry.NUM_LIKES) == 10
+    assert updated.get(qry.TITLE) == rec.get(qry.TITLE)
+
+
+def test_update_invalid_listing_id():
+    with pytest.raises(ValueError, match='Invalid listing ID format'):
+        qry.update('not-valid-id', {qry.TITLE: 'X'})

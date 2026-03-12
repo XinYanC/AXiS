@@ -1,10 +1,7 @@
 from http.client import (
     BAD_REQUEST,
-    FORBIDDEN,
-    NOT_ACCEPTABLE,
     NOT_FOUND,
     OK,
-    SERVICE_UNAVAILABLE,
     UNAUTHORIZED,
 )
 
@@ -19,6 +16,7 @@ TEST_CLIENT = ep.app.test_client()
 
 def test_hello():
     resp = TEST_CLIENT.get(ep.HELLO_EP)
+    assert resp.status_code == OK
     resp_json = resp.get_json()
     assert ep.HELLO_RESP in resp_json
 
@@ -461,6 +459,40 @@ def test_users_create(mock_create):
     mock_create.assert_called_once()
 
 
+@patch('server.endpoints.userqry.update')
+def test_users_update_success(mock_update):
+    """Test PUT /users/update with valid username and body."""
+    mock_updated = {
+        'username': 'testuser',
+        'name': 'Updated Name'
+    }
+    mock_update.return_value = mock_updated
+    body = {'name': 'Updated Name'}
+
+    resp = TEST_CLIENT.put(
+        f"{ep.USERS_EPS}/{ep.UPDATE}?username=testuser",
+        json=body,
+    )
+    resp_json = resp.get_json()
+
+    assert resp.status_code == OK
+    assert ep.USER_RESP in resp_json
+    assert resp_json[ep.USER_RESP]['name'] == 'Updated Name'
+    assert ep.MESSAGE in resp_json
+    mock_update.assert_called_once_with('testuser', body)
+
+
+def test_users_update_missing_username():
+    """Test PUT /users/update without username param returns 400."""
+    resp = TEST_CLIENT.put(
+        f"{ep.USERS_EPS}/{ep.UPDATE}",
+        json={'name': 'X'},
+    )
+    resp_json = resp.get_json()
+    assert resp.status_code == BAD_REQUEST
+    assert ep.ERROR in resp_json
+
+
 @patch('server.endpoints.userqry.delete')
 def test_users_delete_by_username(mock_delete):
     """Test the /users/delete endpoint."""
@@ -512,6 +544,144 @@ def test_users_delete_not_found(mock_delete):
 
     # Assert
     assert resp.status_code == NOT_FOUND
+    assert ep.ERROR in resp_json
+
+
+# ==================== LISTINGS ENDPOINT TESTS ====================
+
+@patch('server.endpoints.listingqry.read')
+def test_listings_read(mock_read):
+    """Test the /listings/read endpoint."""
+    mock_data = {
+        'id1': {'title': 'Item A', 'description': 'Desc A', 'owner': 'a@nyu.edu'},
+        'id2': {'title': 'Item B', 'description': 'Desc B', 'owner': 'b@nyu.edu'},
+    }
+    mock_read.return_value = mock_data
+
+    resp = TEST_CLIENT.get(f"{ep.LISTINGS_EPS}/{ep.READ}")
+    resp_json = resp.get_json()
+
+    assert resp.status_code == OK
+    assert ep.LISTING_RESP in resp_json
+    assert resp_json[ep.LISTING_RESP] == mock_data
+    assert resp_json[ep.NUM_RECS] == len(mock_data)
+
+
+@patch('server.endpoints.listingqry.num_listings')
+def test_listings_count(mock_count):
+    """Test GET /listings/count endpoint."""
+    mock_count.return_value = 15
+
+    resp = TEST_CLIENT.get(f"{ep.LISTINGS_EPS}/{ep.COUNT}")
+    resp_json = resp.get_json()
+
+    assert resp.status_code == OK
+    assert resp_json['count'] == 15
+    assert ep.LISTING_RESP in resp_json
+
+
+@patch('server.endpoints.listingqry.search_listings_by_title')
+def test_listings_search(mock_search):
+    """Test GET /listings/search endpoint."""
+    mock_results = {
+        'id1': {'title': 'Calculus Textbook', 'description': 'Desc', 'owner': 'a@nyu.edu'},
+        'id2': {'title': 'Physics Textbook', 'description': 'Desc', 'owner': 'b@nyu.edu'},
+    }
+    mock_search.return_value = mock_results
+
+    resp = TEST_CLIENT.get(f"{ep.LISTINGS_EPS}/{ep.SEARCH}?q=textbook")
+    resp_json = resp.get_json()
+
+    assert resp.status_code == OK
+    assert ep.LISTING_RESP in resp_json
+    assert resp_json[ep.LISTING_RESP] == mock_results
+    assert resp_json[ep.NUM_RECS] == len(mock_results)
+    assert resp_json['search_term'] == 'textbook'
+    mock_search.assert_called_once_with('textbook')
+
+
+@patch('server.endpoints.listingqry.create')
+def test_listings_create(mock_create):
+    """Test POST /listings/create endpoint."""
+    mock_create.return_value = '507f1f77bcf86cd799439011'
+    listing_data = {
+        'title': 'Desk Lamp',
+        'description': 'LED lamp, good condition',
+        'transaction_type': 'sell',
+        'owner': 'student@nyu.edu',
+        'meetup_location': 'Bobst Library',
+    }
+
+    resp = TEST_CLIENT.post(
+        f"{ep.LISTINGS_EPS}/{ep.CREATE}",
+        json=listing_data,
+    )
+    resp_json = resp.get_json()
+
+    assert resp.status_code == 201
+    assert ep.MESSAGE in resp_json
+    assert resp_json['id'] == '507f1f77bcf86cd799439011'
+    assert resp_json['listing']['title'] == listing_data['title']
+    mock_create.assert_called_once()
+
+
+@patch('server.endpoints.listingqry.update')
+def test_listings_update_success(mock_update):
+    """Test PUT /listings/update with valid id and body."""
+    listing_id = '507f1f77bcf86cd799439011'
+    mock_updated = {
+        '_id': listing_id,
+        'title': 'Updated Title'
+    }
+    mock_update.return_value = mock_updated
+    body = {'title': 'Updated Title'}
+
+    resp = TEST_CLIENT.put(
+        f"{ep.LISTINGS_EPS}/{ep.UPDATE}?id={listing_id}",
+        json=body,
+    )
+    resp_json = resp.get_json()
+
+    assert resp.status_code == OK
+    assert ep.LISTING_RESP in resp_json
+    assert resp_json[ep.LISTING_RESP]['title'] == 'Updated Title'
+    assert ep.MESSAGE in resp_json
+    mock_update.assert_called_once_with(listing_id, body)
+
+
+def test_listings_update_missing_id():
+    """Test PUT /listings/update without id param returns 400."""
+    resp = TEST_CLIENT.put(
+        f"{ep.LISTINGS_EPS}/{ep.UPDATE}",
+        json={'title': 'X'},
+    )
+    resp_json = resp.get_json()
+    assert resp.status_code == BAD_REQUEST
+    assert ep.ERROR in resp_json
+
+
+@patch('server.endpoints.listingqry.delete')
+def test_listings_delete_success(mock_delete):
+    """Test DELETE /listings/delete with valid id."""
+    mock_delete.return_value = True
+    listing_id = '507f1f77bcf86cd799439011'
+
+    resp = TEST_CLIENT.delete(
+        f"{ep.LISTINGS_EPS}/{ep.DELETE}?id={listing_id}"
+    )
+    resp_json = resp.get_json()
+
+    assert resp.status_code == OK
+    assert ep.MESSAGE in resp_json
+    assert listing_id in resp_json[ep.MESSAGE]
+    mock_delete.assert_called_once_with(listing_id)
+
+
+def test_listings_delete_missing_id():
+    """Test DELETE /listings/delete without id param returns 400."""
+    resp = TEST_CLIENT.delete(f"{ep.LISTINGS_EPS}/{ep.DELETE}")
+    resp_json = resp.get_json()
+    assert resp.status_code == BAD_REQUEST
     assert ep.ERROR in resp_json
 
 

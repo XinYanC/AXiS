@@ -119,6 +119,82 @@ def _validate_listing(listing: dict) -> None:
             raise ValueError("'num_likes' must be a non-negative integer.")
 
 
+def _validate_listing_update(update_dict: dict) -> None:
+    """Validate only the fields present in an update payload."""
+    if not update_dict or not isinstance(update_dict, dict):
+        raise ValueError("Update must be a non-empty dictionary.")
+    if TITLE in update_dict:
+        t = update_dict[TITLE]
+        if not t or not str(t).strip():
+            raise ValueError("'title' must be non-empty.")
+    if DESCRIPTION in update_dict:
+        d = update_dict[DESCRIPTION]
+        if not d or not str(d).strip():
+            raise ValueError("'description' must be non-empty.")
+    if TRANSACTION_TYPE in update_dict:
+        tt = str(update_dict[TRANSACTION_TYPE]).strip().lower()
+        if tt not in VALID_TRANSACTION_TYPES:
+            raise ValueError(
+                f"transaction_type must be one of "
+                f"{sorted(VALID_TRANSACTION_TYPES)}, got "
+                f"{repr(update_dict[TRANSACTION_TYPE])}"
+            )
+    if MEETUP_LOCATION in update_dict:
+        loc = update_dict[MEETUP_LOCATION]
+        if not loc or not str(loc).strip():
+            raise ValueError("'meetup_location' must be non-empty.")
+    if PRICE in update_dict and update_dict[PRICE] is not None:
+        try:
+            float(update_dict[PRICE])
+        except (TypeError, ValueError):
+            raise ValueError("'price' must be a number or null.")
+    if NUM_LIKES in update_dict and update_dict[NUM_LIKES] is not None:
+        try:
+            n = int(update_dict[NUM_LIKES])
+            if n < 0:
+                raise ValueError("'num_likes' must be a non-negative integer.")
+        except TypeError:
+            raise ValueError("'num_likes' must be a non-negative integer.")
+
+
+LISTING_UPDATE_ALLOWED = {
+    TITLE, DESCRIPTION, TRANSACTION_TYPE, MEETUP_LOCATION, PRICE, NUM_LIKES
+}
+
+
+def update(listing_id: str, update_dict: dict) -> dict:
+    """
+    Update a listing by its MongoDB _id.
+    Allowed fields: title, description, transaction_type,
+    meetup_location, price, num_likes. Returns the updated listing.
+    """
+    if not isinstance(listing_id, str):
+        raise ValueError(
+            f"Listing ID must be a string, got {type(listing_id)}"
+        )
+    try:
+        obj_id = ObjectId(listing_id)
+    except Exception:
+        raise ValueError(f"Invalid listing ID format: {listing_id}")
+    allowed = {
+        k: update_dict[k]
+        for k in update_dict
+        if k in LISTING_UPDATE_ALLOWED
+    }
+    if not allowed:
+        raise ValueError(
+            "Update must contain at least one allowed field: "
+            "title, description, images, transaction_type, owner, "
+            "meetup_location, price, num_likes."
+        )
+    _validate_listing_update(allowed)
+    result = dbc.update(LISTING_COLLECTION, {dbc.MONGO_ID: obj_id}, allowed)
+    if result.matched_count < 1:
+        raise ValueError(f"Listing not found: {listing_id}")
+    load_cache()
+    return cache.get(listing_id, {})
+
+
 @needs_cache
 def num_listings() -> int:
     return len(cache)

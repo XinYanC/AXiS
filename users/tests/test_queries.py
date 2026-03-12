@@ -188,6 +188,50 @@ def test_create_dup_key():
     safe_delete(temp_rec)
 
 
+def test_create_default_saved_listings_empty():
+    """User created without saved_listings gets default empty list."""
+    import time
+    timestamp = int(time.time() * 1000)
+    user = {
+        'username': f'savedtest{timestamp}',
+        'name': 'Saved Test',
+        'email': f'savedtest{timestamp}@example.edu',
+    }
+    safe_delete(user)
+    qry.clear_cache()
+    rec_id = qry.create(user)
+    try:
+        users = qry.read()
+        assert user[qry.USERNAME] in users
+        created = users[user[qry.USERNAME]]
+        assert qry.SAVED_LISTINGS in created
+        assert created[qry.SAVED_LISTINGS] == []
+    finally:
+        safe_delete(user)
+
+
+def test_create_with_saved_listings():
+    """User created with saved_listings stores the list correctly."""
+    import time
+    timestamp = int(time.time() * 1000)
+    listing_ids = ['507f1f77bcf86cd799439011', '507f1f77bcf86cd799439012']
+    user = {
+        'username': f'savedlist{timestamp}',
+        'name': 'Saved List User',
+        'email': f'savedlist{timestamp}@example.edu',
+        qry.SAVED_LISTINGS: listing_ids,
+    }
+    safe_delete(user)
+    qry.clear_cache()
+    rec_id = qry.create(user)
+    try:
+        users = qry.read()
+        assert user[qry.USERNAME] in users
+        created = users[user[qry.USERNAME]]
+        assert created[qry.SAVED_LISTINGS] == listing_ids
+    finally:
+        safe_delete(user)
+
 @pytest.mark.parametrize("user_data, match", [
     ({}, "non-empty 'username'"),
     (17, "must be a dictionary"),
@@ -301,3 +345,29 @@ def test_create_multiple_users_and_count():
         for user in created_users:
             safe_delete(user)
 
+
+def test_update_by_username(temp_user_unique):
+    """Update user by username; allowed fields are applied."""
+    rec_id, rec = temp_user_unique
+    updated = qry.update(rec[qry.USERNAME], {'name': 'Updated Name', 'bio': 'New bio'})
+    assert updated.get('name') == 'Updated Name'
+    assert updated.get('bio') == 'New bio'
+    assert updated.get(qry.USERNAME) == rec[qry.USERNAME]
+    # password should not be in response
+    assert qry.PASSWORD not in updated
+
+
+def test_update_by_id(temp_user_unique):
+    """Update user by MongoDB ObjectId."""
+    rec_id, rec = temp_user_unique
+    updated = qry.update(rec_id, {'location': 'CA,USA'})
+    assert updated.get('location') == 'CA,USA'
+    assert updated.get(qry.USERNAME) == rec[qry.USERNAME]
+
+
+def test_update_saved_listings(temp_user_unique):
+    """Update user's saved_listings."""
+    rec_id, rec = temp_user_unique
+    listing_ids = ['507f1f77bcf86cd799439011', '507f1f77bcf86cd799439012']
+    updated = qry.update(rec[qry.USERNAME], {qry.SAVED_LISTINGS: listing_ids})
+    assert updated.get(qry.SAVED_LISTINGS) == listing_ids

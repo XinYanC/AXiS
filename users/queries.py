@@ -23,6 +23,7 @@ EMAIL = 'email'  # must end in .edu
 LOCATION = 'location'
 CREATED_AT = 'created_at'
 UPDATED_AT = 'updated_at'
+SAVED_LISTINGS = 'saved_listings'  # list of listing IDs the user has liked
 
 SAMPLE_USER = {
     USERNAME: 'testuser',
@@ -33,6 +34,7 @@ SAMPLE_USER = {
     IS_VERIFIED: False,
     EMAIL: 'testuser@example.edu',
     LOCATION: 'NY,USA',
+    SAVED_LISTINGS: [],
 }
 SAMPLE_KEY = SAMPLE_USER[USERNAME]
 
@@ -87,6 +89,12 @@ def create(user, reload=True):
         hashed = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
         user[PASSWORD] = hashed.decode('utf-8')
 
+    if SAVED_LISTINGS in user and user[SAVED_LISTINGS] is not None:
+        if not isinstance(user[SAVED_LISTINGS], list):
+            raise ValueError("'saved_listings' must be a list.")
+    else:
+        user[SAVED_LISTINGS] = []
+
     rec_id = dbc.create(USER_COLLECTION, user)
     if reload:
         load_cache()
@@ -114,6 +122,74 @@ def delete(username_or_id: str) -> bool:
         raise ValueError(f'User not found: {username_or_id}')
     load_cache()
     return ret > 0
+
+
+USER_UPDATE_ALLOWED = {
+    NAME, AGE, BIO, IS_VERIFIED, LOCATION, SAVED_LISTINGS, PASSWORD
+}
+
+
+def update(username_or_id: str, update_dict: dict) -> dict:
+    """
+    Update a user by username or MongoDB ObjectId.
+    Allowed fields: name, age, bio, is_verified, location,
+    saved_listings, password (will be hashed).
+    Username and email cannot be changed.
+    Returns the updated user from cache (without password).
+    """
+    if not update_dict or not isinstance(update_dict, dict):
+        raise ValueError("Update must be a non-empty dictionary.")
+    allowed = {
+        k: update_dict[k] for k in update_dict if k in USER_UPDATE_ALLOWED
+    }
+    if not allowed:
+        raise ValueError(
+            "Update must contain at least one allowed field: "
+            "name, age, bio, is_verified, email, location, "
+            "saved_listings, password."
+        )
+    if USERNAME in update_dict:
+        raise ValueError("Username cannot be updated.")
+    if SAVED_LISTINGS in allowed and allowed[SAVED_LISTINGS] is not None:
+        if not isinstance(allowed[SAVED_LISTINGS], list):
+            raise ValueError("'saved_listings' must be a list.")
+    if PASSWORD in allowed and allowed[PASSWORD]:
+        password_bytes = str(allowed[PASSWORD]).encode('utf-8')
+        allowed[PASSWORD] = bcrypt.hashpw(
+            password_bytes, bcrypt.gensalt()
+        ).decode('utf-8')
+    # by ObjectId
+    if len(username_or_id) == 24:
+        try:
+            obj_id = ObjectId(username_or_id)
+            result = dbc.update(
+                USER_COLLECTION, {dbc.MONGO_ID: obj_id}, allowed
+            )
+            if result.matched_count < 1:
+                raise ValueError(f'User not found: {username_or_id}')
+            load_cache()
+            updated = dbc.read_one(USER_COLLECTION, {dbc.MONGO_ID: obj_id})
+            if updated:
+                updated.pop(PASSWORD, None)
+                return updated
+            return {}
+        except Exception:
+            pass
+    # By username
+    if username_or_id not in cache:
+        raise ValueError(f'User not found: {username_or_id}')
+    result = dbc.update(
+        USER_COLLECTION, {USERNAME: username_or_id}, allowed
+    )
+    if result.matched_count < 1:
+        raise ValueError(f'User not found: {username_or_id}')
+    load_cache()
+    updated = cache.get(username_or_id)
+    if updated:
+        out = dict(updated)
+        out.pop(PASSWORD, None)
+        return out
+    return {}
 
 
 @needs_cache

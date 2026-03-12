@@ -25,6 +25,7 @@ ID = 'id'
 READ = 'read'
 CREATE = 'create'
 DELETE = 'delete'
+UPDATE = 'update'
 SEARCH = 'search'
 COUNT = 'count'
 
@@ -99,6 +100,11 @@ user_model = api.model('User', {
     ),
     'location': fields.String(
         required=False, description='Location (e.g., "NY,USA")'
+    ),
+    'saved_listings': fields.List(
+        fields.String,
+        description='List of listing IDs the user has liked/saved',
+        default=[]
     ),
 })
 
@@ -677,6 +683,38 @@ class UsersCreate(Resource):
             return {ERROR: str(e)}, 500
 
 
+@api.route(f'{USERS_EPS}/{UPDATE}')
+class UsersUpdate(Resource):
+    """
+    Update a user
+    """
+    @api.param('username', 'Username or MongoDB ObjectId', required=True)
+    @api.expect(user_model)
+    def put(self):
+        """
+        Update a user by username or ObjectId.
+        Query param: 'username'. Body: any subset of name, age, bio,
+        is_verified, location, saved_listings, password (hashed).
+        """
+        try:
+            username_or_id = request.args.get('username')
+            if not username_or_id:
+                return {
+                    ERROR: 'Query parameter "username" is required'
+                }, 400
+            body = request.json
+            if not body:
+                return {ERROR: 'Request body must contain JSON data'}, 400
+            updated = userqry.update(username_or_id, body)
+            return {USER_RESP: updated, MESSAGE: 'User updated successfully'}
+        except ValueError as e:
+            return {ERROR: str(e)}, 400
+        except ConnectionError as e:
+            return {ERROR: str(e)}, 500
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+
+
 @api.route(f'{USERS_EPS}/{DELETE}')
 class UsersDelete(Resource):
     """
@@ -804,6 +842,39 @@ class ListingsCreate(Resource):
                 'id': str(rec_id),
                 'listing': original_data,
             }, 201
+        except ValueError as e:
+            return {ERROR: str(e)}, 400
+        except ConnectionError as e:
+            return {ERROR: str(e)}, 500
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+
+
+@api.route(f'{LISTINGS_EPS}/{UPDATE}')
+class ListingsUpdate(Resource):
+    """
+    Update a listing
+    """
+    @api.param('id', 'Listing MongoDB _id', required=True)
+    @api.expect(listing_model)
+    def put(self):
+        """
+        Update a listing by its ID.
+        Query param: 'id'. Body: any subset of title, description,
+        transaction_type, meetup_location, price, num_likes.
+        """
+        try:
+            listing_id = request.args.get('id')
+            if not listing_id:
+                return {ERROR: 'Query parameter "id" is required'}, 400
+            body = request.json
+            if not body:
+                return {ERROR: 'Request body must contain JSON data'}, 400
+            updated = listingqry.update(listing_id, body)
+            return {
+                LISTING_RESP: updated,
+                MESSAGE: 'Listing updated successfully',
+            }
         except ValueError as e:
             return {ERROR: str(e)}, 400
         except ConnectionError as e:
