@@ -149,7 +149,7 @@ To use a cloud MongoDB deployment, you need to set environment variables:
    - `MONGO_PASSWD`: Your MongoDB password
    - `CLOUD_MONGO`: Set to `1` for cloud MongoDB, `0` for local
 
-2. Run `./local.sh` and try executing a read.
+2. Run `source local.sh` and try executing a read.
 
 **Important**: Do not push your username and password to GitHub. Only modify it locally.
 
