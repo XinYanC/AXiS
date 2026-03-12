@@ -162,6 +162,7 @@ LISTING_UPDATE_ALLOWED = {
 }
 
 
+@needs_cache
 def update(listing_id: str, update_dict: dict) -> dict:
     """
     Update a listing by its MongoDB _id.

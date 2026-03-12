@@ -129,6 +129,7 @@ USER_UPDATE_ALLOWED = {
 }
 
 
+@needs_cache
 def update(username_or_id: str, update_dict: dict) -> dict:
     """
     Update a user by username or MongoDB ObjectId.
