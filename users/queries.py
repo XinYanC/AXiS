@@ -2,6 +2,7 @@
 """
 This file deals with our user-level data.
 """
+from datetime import datetime, timezone
 from functools import wraps
 from bson import ObjectId
 import data.db_connect as dbc
@@ -94,6 +95,8 @@ def create(user, reload=True):
             raise ValueError("'saved_listings' must be a list.")
     else:
         user[SAVED_LISTINGS] = []
+
+    user[CREATED_AT] = datetime.now(timezone.utc).isoformat()
 
     rec_id = dbc.create(USER_COLLECTION, user)
     if reload:

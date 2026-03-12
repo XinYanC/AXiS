@@ -232,6 +232,32 @@ def test_create_with_saved_listings():
     finally:
         safe_delete(user)
 
+
+def test_create_sets_created_at():
+    """User created should include an ISO-8601 created_at timestamp."""
+    import time
+    from datetime import datetime
+
+    timestamp = int(time.time() * 1000)
+    user = {
+        'username': f'createdattest{timestamp}',
+        'name': 'Created At Test',
+        'email': f'createdattest{timestamp}@example.edu',
+    }
+    safe_delete(user)
+    qry.clear_cache()
+    qry.create(user)
+    try:
+        users = qry.read()
+        assert user[qry.USERNAME] in users
+        created = users[user[qry.USERNAME]]
+        assert qry.CREATED_AT in created
+        assert isinstance(created[qry.CREATED_AT], str)
+        parsed = datetime.fromisoformat(created[qry.CREATED_AT])
+        assert parsed.tzinfo is not None
+    finally:
+        safe_delete(user)
+
 @pytest.mark.parametrize("user_data, match", [
     ({}, "non-empty 'username'"),
     (17, "must be a dictionary"),

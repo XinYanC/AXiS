@@ -455,8 +455,21 @@ def test_users_create(mock_create):
     assert ep.MESSAGE in resp_json
     assert resp_json['id'] == '507f1f77bcf86cd799439014'
     assert resp_json['user']['username'] == user_data['username']
-    assert resp_json['user']['password'] == '[REDACTED]'  # Password should be redacted
+    # Password should be redacted in the response body.
+    assert resp_json['user']['password'] == '[REDACTED]'
+    # created_at is server-generated and should not be required in input.
+    called_payload = mock_create.call_args.args[0]
+    assert 'created_at' not in called_payload
     mock_create.assert_called_once()
+
+
+def test_user_model_created_at_is_readonly():
+    """Swagger model marks created_at as a server-generated read-only field."""
+    assert 'created_at' in ep.user_model
+    created_at_field = ep.user_model['created_at']
+    assert getattr(created_at_field, 'readonly', False) is True
+    schema = getattr(created_at_field, '__schema__', {})
+    assert schema.get('readOnly') is True
 
 
 @patch('server.endpoints.userqry.update')
