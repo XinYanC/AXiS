@@ -10,6 +10,11 @@ export CLOUD_MONGO=0
 # export MONGO_USER=
 # export MONGO_PASSWD=
 
+# Cloudinary credentials (from https://console.cloudinary.com → Settings → API Keys)
+export CLOUDINARY_CLOUD_NAME=
+export CLOUDINARY_API_KEY=
+export CLOUDINARY_API_SECRET=
+
 # Override MongoDB host/port in the future
 export MONGO_HOST=localhost
 export MONGO_PORT=27017

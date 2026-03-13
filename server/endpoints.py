@@ -5,12 +5,14 @@ The endpoint called `endpoints` will return all available endpoints.
 
 import cities.queries as cityqry
 import countries.queries as countryqry
+import data.cloudinary_connect as cloudinarycon
 import listings.queries as listingqry
 import states.queries as stateqry
 import users.queries as userqry
 from flask import Flask, request
 from flask_restx import Resource, Api, fields  # Namespace
 from flask_cors import CORS
+from werkzeug.datastructures import FileStorage
 
 
 app = Flask(__name__)
@@ -34,6 +36,7 @@ UPDATE = 'update'
 SEARCH = 'search'
 COUNT = 'count'
 BY_USER = 'by-user'
+UPLOAD_IMAGE = 'upload-image'
 
 ENDPOINT_EP = '/endpoints'
 ENDPOINT_RESP = 'Available endpoints'
@@ -158,6 +161,15 @@ login_model = api.model('Login', {
         required=True, description='Password'
     ),
 })
+
+upload_image_parser = api.parser()
+upload_image_parser.add_argument(
+    'image',
+    location='files',
+    type=FileStorage,
+    required=True,
+    help='Image file to upload',
+)
 
 
 # ==================== CITIES ENDPOINTS ====================
@@ -857,6 +869,34 @@ class ListingsByUser(Resource):
             return {ERROR: str(e)}, 400
         except ConnectionError as e:
             return {ERROR: str(e)}, 500
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+
+
+@api.route(f'{LISTINGS_EPS}/{UPLOAD_IMAGE}')
+class ListingsUploadImage(Resource):
+    """
+    Upload an image for a listing to Cloudinary.
+    """
+    @api.expect(upload_image_parser)
+    @api.doc(consumes=['multipart/form-data'])
+    def post(self):
+        """
+        Upload a single image file to Cloudinary and receive its URL.
+        Send as multipart/form-data with a field named 'image'.
+        Returns the Cloudinary HTTPS URL to include in the listing's
+        'images' array when calling POST /listings/create.
+        """
+        try:
+            if 'image' not in request.files:
+                return {ERROR: 'No image file provided (field: "image")'}, 400
+            file = request.files['image']
+            if file.filename == '':
+                return {ERROR: 'No image file selected'}, 400
+            url = cloudinarycon.upload_image(file)
+            return {'url': url}, 200
+        except ValueError as e:
+            return {ERROR: str(e)}, 400
         except Exception as e:
             return {ERROR: str(e)}, 500
 

@@ -4,6 +4,7 @@ from http.client import (
     OK,
     UNAUTHORIZED,
 )
+from io import BytesIO
 
 from unittest.mock import patch
 
@@ -638,6 +639,67 @@ def test_listings_by_user(mock_search_by_owner):
 def test_listings_by_user_missing_username():
     """Test GET /listings/by-user without username returns 400."""
     resp = TEST_CLIENT.get(f"{ep.LISTINGS_EPS}/{ep.BY_USER}")
+    resp_json = resp.get_json()
+
+    assert resp.status_code == BAD_REQUEST
+    assert ep.ERROR in resp_json
+
+
+@patch('server.endpoints.cloudinarycon.upload_image')
+def test_listings_upload_image_success(mock_upload):
+    """Test POST /listings/upload-image with a valid multipart file."""
+    expected_url = 'https://res.cloudinary.com/demo/image/upload/test.png'
+    mock_upload.return_value = expected_url
+
+    resp = TEST_CLIENT.post(
+        f"{ep.LISTINGS_EPS}/{ep.UPLOAD_IMAGE}",
+        data={'image': (BytesIO(b'fake-image-bytes'), 'test.png')},
+        content_type='multipart/form-data',
+    )
+    resp_json = resp.get_json()
+
+    assert resp.status_code == OK
+    assert resp_json['url'] == expected_url
+    called_file = mock_upload.call_args.args[0]
+    assert called_file.filename == 'test.png'
+
+
+def test_listings_upload_image_missing_file():
+    """Test POST /listings/upload-image without image field returns 400."""
+    resp = TEST_CLIENT.post(
+        f"{ep.LISTINGS_EPS}/{ep.UPLOAD_IMAGE}",
+        data={},
+        content_type='multipart/form-data',
+    )
+    resp_json = resp.get_json()
+
+    assert resp.status_code == BAD_REQUEST
+    assert ep.ERROR in resp_json
+
+
+def test_listings_upload_image_empty_filename():
+    """Test POST /listings/upload-image with empty filename returns 400."""
+    resp = TEST_CLIENT.post(
+        f"{ep.LISTINGS_EPS}/{ep.UPLOAD_IMAGE}",
+        data={'image': (BytesIO(b'abc'), '')},
+        content_type='multipart/form-data',
+    )
+    resp_json = resp.get_json()
+
+    assert resp.status_code == BAD_REQUEST
+    assert ep.ERROR in resp_json
+
+
+@patch('server.endpoints.cloudinarycon.upload_image')
+def test_listings_upload_image_cloudinary_error(mock_upload):
+    """Test POST /listings/upload-image when Cloudinary helper fails."""
+    mock_upload.side_effect = ValueError('CLOUDINARY_API_KEY not set')
+
+    resp = TEST_CLIENT.post(
+        f"{ep.LISTINGS_EPS}/{ep.UPLOAD_IMAGE}",
+        data={'image': (BytesIO(b'fake-image-bytes'), 'test.png')},
+        content_type='multipart/form-data',
+    )
     resp_json = resp.get_json()
 
     assert resp.status_code == BAD_REQUEST
