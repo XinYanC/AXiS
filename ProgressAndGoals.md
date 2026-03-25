@@ -62,7 +62,7 @@
 - **Inspiration**: NYU Swap Store
 - Homepage displaying available items listed by students within proximity or school affiliation
 - Location-aware browsing and search
-- Supports transactions like buying, selling, pickup, and drop-off
+- Supports listings offered for sale or for free
 
 ### Users
 
@@ -82,7 +82,7 @@
   - a title
   - description
   - one or more images
-  - transaction type (buy, sell, pickup, or drop-off)
+  - transaction type (`free` or `sell`)
   - a geographic location (ZIP code or latitude/longitude)
 - Each item is associated with the user who posted it
 - Users can create, edit, and delete their own item listings
@@ -92,11 +92,8 @@
 
 - Each item clearly indicates its transaction method
 - Transaction methods include:
-  - buy
+  - free
   - sell
-  - donation
-  - pickup
-  - drop-off
 - **Stretch goal**: users receive notifications or confirmations when a transaction is completed
 
 ### Stretch Goals

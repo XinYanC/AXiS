@@ -136,7 +136,7 @@ listing_model = api.model('Listing', {
     ),
     'transaction_type': fields.String(
         required=True,
-        description='One of: buy, sell, donation, pickup, drop-off'
+        description='One of: free, sell'
     ),
     'owner': fields.String(
         required=True,

@@ -22,7 +22,7 @@ PRICE = 'price'
 NUM_LIKES = 'num_likes'
 CREATED_AT = 'created_at'
 
-VALID_TRANSACTION_TYPES = {'buy', 'sell', 'donation', 'pickup', 'drop-off'}
+VALID_TRANSACTION_TYPES = {'free', 'sell'}
 
 SAMPLE_LISTING = {
     TITLE: 'Textbook - Intro to CS',

@@ -50,7 +50,7 @@ def sample_listings():
         {
             qry.TITLE: 'Free Chair',
             qry.DESCRIPTION: 'Donation',
-            qry.TRANSACTION_TYPE: 'donation',
+            qry.TRANSACTION_TYPE: 'free',
             qry.OWNER: 'c@nyu.edu',
             qry.MEETUP_LOCATION: 'Lobby',
         },
@@ -115,7 +115,7 @@ def test_create_invalid_inputs(listing_data, match):
         qry.create(listing_data)
 
 @pytest.mark.parametrize("bad_type", [
-    'swap', 'trade', 'free', 'rent', '', '  ', None, 123,
+    'swap', 'trade', 'rent', 'buy', 'donation', 'pickup', 'drop-off', '', '  ', None, 123,
 ])
 def test_create_invalid_transaction_type(bad_type):
     listing = {

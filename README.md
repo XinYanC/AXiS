@@ -137,7 +137,7 @@ Loads marketplace listing data from a tab-separated file:
 python3 ETL/load_listings.py ETL/listings.tsv
 ```
 
-The file should have columns: `title`, `description`, `transaction_type`, `owner`, `meetup_location`, and optionally `images`, `price`, `num_likes`, `created_at`. The `owner` field should match a username from the users collection (load users first).
+The file should have columns: `title`, `description`, `transaction_type`, `owner`, `meetup_location`, and optionally `images`, `price`, `num_likes`, `created_at`. Use `transaction_type` values `free` or `sell` only. The `owner` field should match a username from the users collection (load users first).
 
 ## Environment Variables
 
