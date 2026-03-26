@@ -13,7 +13,7 @@ from states.queries import (
     create,
 )
 
-CURR_COUNTRY = 'USA'
+CURR_COUNTRY = 'US'
 
 
 def extract(flnm: str) -> list:
