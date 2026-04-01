@@ -858,3 +858,85 @@ def test_auth_login_missing_password():
     assert ep.ERROR in resp_json
     assert 'Password' in resp_json[ep.ERROR]
 
+
+# ==================== SYSTEM DROPDOWN ENDPOINT TESTS ====================
+
+
+def test_system_dropdown_form_get():
+    """GET /system/dropdown-form returns form metadata and HATEOAS _links."""
+    resp = TEST_CLIENT.get(f'{ep.SYSTEM_EPS}/{ep.SYSTEM_DROPDOWN_FORM}')
+    assert resp.status_code == OK
+    data = resp.get_json()
+    assert 'form' in data
+    assert isinstance(data['form'], list)
+    assert len(data['form']) >= 1
+    assert 'form_descr' in data
+    assert 'fld_names' in data
+    assert isinstance(data['fld_names'], list)
+    assert 'country' in data['fld_names']
+    assert 'transaction_type' in data['fld_names']
+    assert '_links' in data
+    assert data['_links']['self']['href'].endswith(
+        f'{ep.SYSTEM_EPS}/{ep.SYSTEM_DROPDOWN_FORM}'
+    )
+    assert 'options' in data['_links']
+
+
+@patch('server.endpoints.countryqry.read')
+def test_system_dropdown_options_countries(mock_read):
+    """GET /system/dropdown-options without query returns countries as options."""
+    mock_read.return_value = {
+        'USA': {'name': 'United States', 'code': 'USA'},
+        'CAN': {'name': 'Canada', 'code': 'CAN'},
+    }
+    resp = TEST_CLIENT.get(f'{ep.SYSTEM_EPS}/{ep.SYSTEM_DROPDOWN_OPTIONS}')
+    assert resp.status_code == OK
+    data = resp.get_json()
+    assert data['kind'] == 'countries'
+    assert data[ep.NUM_RECS] == 2
+    values = {o['value'] for o in data['options']}
+    assert values == {'USA', 'CAN'}
+    assert all('value' in o and 'label' in o for o in data['options'])
+    assert '_links' in data
+    assert 'form' in data['_links']
+
+
+@patch('server.endpoints.stateqry.read')
+def test_system_dropdown_options_states(mock_read):
+    """GET /system/dropdown-options?country_code= filters states (case-insensitive)."""
+    mock_read.return_value = {
+        'NY,USA': {'name': 'New York', 'code': 'NY', 'country_code': 'USA'},
+        'TX,USA': {'name': 'Texas', 'code': 'TX', 'country_code': 'USA'},
+        'ON,CAN': {'name': 'Ontario', 'code': 'ON', 'country_code': 'CAN'},
+    }
+    resp = TEST_CLIENT.get(
+        f'{ep.SYSTEM_EPS}/{ep.SYSTEM_DROPDOWN_OPTIONS}?country_code=usa'
+    )
+    assert resp.status_code == OK
+    data = resp.get_json()
+    assert data['kind'] == 'states'
+    assert data['country_code'] == 'usa'
+    assert data[ep.NUM_RECS] == 2
+    codes = {o['value'] for o in data['options']}
+    assert codes == {'NY', 'TX'}
+
+
+@patch('server.endpoints.cityqry.read')
+def test_system_dropdown_options_cities(mock_read):
+    """GET /system/dropdown-options?state_code= filters cities (case-insensitive)."""
+    mock_read.return_value = [
+        {'name': 'Buffalo', 'state_code': 'NY'},
+        {'name': 'Albany', 'state_code': 'NY'},
+        {'name': 'Houston', 'state_code': 'TX'},
+    ]
+    resp = TEST_CLIENT.get(
+        f'{ep.SYSTEM_EPS}/{ep.SYSTEM_DROPDOWN_OPTIONS}?state_code=ny'
+    )
+    assert resp.status_code == OK
+    data = resp.get_json()
+    assert data['kind'] == 'cities'
+    assert data['state_code'] == 'ny'
+    assert data[ep.NUM_RECS] == 2
+    city_names = {o['value'] for o in data['options']}
+    assert city_names == {'Buffalo', 'Albany'}
+

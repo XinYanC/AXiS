@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Seed loader — drops and reloads states, cities, and countries from JSON seed files.
+Seed loader — drops and reloads states, cities, and countries from JSON seed
+files.
 
 Usage:
     python3 data/load.py
@@ -9,18 +10,10 @@ import json
 import os
 import sys
 
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, project_root)
-
-import data.db_connect as dbc
-import states.queries as stateqry
-import cities.queries as cityqry
-import countries.queries as countryqry
-
 SEEDS_DIR = os.path.join(os.path.dirname(__file__), 'seeds')
 
 
-def load_collection(seed_file, create_fn, clear_cache_fn, label):
+def load_collection(dbc, seed_file, create_fn, clear_cache_fn, label):
     seed_path = os.path.join(SEEDS_DIR, seed_file)
     with open(seed_path) as f:
         records = json.load(f)
@@ -47,10 +40,35 @@ def load_collection(seed_file, create_fn, clear_cache_fn, label):
 
 
 def main():
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, project_root)
+    import data.db_connect as dbc
+    import states.queries as stateqry
+    import cities.queries as cityqry
+    import countries.queries as countryqry
+
     print('Loading seed data into MongoDB...')
-    load_collection('states.json', stateqry.create, stateqry.clear_cache, 'states')
-    load_collection('cities.json', cityqry.create, cityqry.clear_cache, 'cities')
-    load_collection('countries.json', countryqry.create, countryqry.clear_cache, 'countries')
+    load_collection(
+        dbc,
+        'states.json',
+        stateqry.create,
+        stateqry.clear_cache,
+        'states',
+    )
+    load_collection(
+        dbc,
+        'cities.json',
+        cityqry.create,
+        cityqry.clear_cache,
+        'cities',
+    )
+    load_collection(
+        dbc,
+        'countries.json',
+        countryqry.create,
+        countryqry.clear_cache,
+        'countries',
+    )
     print('Done.')
 
 

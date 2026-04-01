@@ -9,6 +9,7 @@ import data.cloudinary_connect as cloudinarycon
 import listings.queries as listingqry
 import states.queries as stateqry
 import users.queries as userqry
+from server import dropdown_form
 from flask import Flask, request
 from flask_restx import Resource, Api, fields  # Namespace
 from flask_cors import CORS
@@ -58,6 +59,10 @@ USER_RESP = 'User'
 
 LISTINGS_EPS = '/listings'
 LISTING_RESP = 'Listings'
+
+SYSTEM_EPS = '/system'
+SYSTEM_DROPDOWN_FORM = 'dropdown-form'
+SYSTEM_DROPDOWN_OPTIONS = 'dropdown-options'
 
 AUTH_LOGIN_EP = '/auth/login'
 
@@ -1022,6 +1027,160 @@ class AuthLogin(Resource):
             return {USER_RESP: user, MESSAGE: 'Login successful'}, 200
         except ConnectionError as e:
             return {ERROR: str(e)}, 500
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+
+
+# ==================== SYSTEM / HATEOAS DROPDOWN ENDPOINTS ====================
+
+def _option(value, label):
+    return {'value': value, 'label': label}
+
+
+def _dropdown_links(country_code=None, state_code=None):
+    base = f'{SYSTEM_EPS}/{SYSTEM_DROPDOWN_OPTIONS}'
+    links = {
+        'self': {'href': base},
+        'form': {'href': f'{SYSTEM_EPS}/{SYSTEM_DROPDOWN_FORM}'},
+        'countries': {'href': base},
+    }
+    if country_code:
+        links['states'] = {
+            'href': f'{base}?country_code={country_code}',
+        }
+    else:
+        links['states'] = {
+            'href': f'{base}?country_code={{country_code}}',
+            'templated': True,
+        }
+    if state_code:
+        links['cities'] = {'href': f'{base}?state_code={state_code}'}
+    else:
+        links['cities'] = {
+            'href': f'{base}?state_code={{state_code}}',
+            'templated': True,
+        }
+    return links
+
+
+@api.route(f'{SYSTEM_EPS}/{SYSTEM_DROPDOWN_FORM}')
+class SystemDropdownForm(Resource):
+    """
+    Machine-readable form description for dropdown fields (Swagger + clients).
+    """
+
+    def get(self):
+        try:
+            return {
+                'form': dropdown_form.get_form(),
+                'form_descr': dropdown_form.get_form_descr(),
+                'fld_names': dropdown_form.get_fld_names(),
+                '_links': {
+                    'self': {
+                        'href': f'{SYSTEM_EPS}/{SYSTEM_DROPDOWN_FORM}',
+                    },
+                    'options': {
+                        'href': f'{SYSTEM_EPS}/{SYSTEM_DROPDOWN_OPTIONS}',
+                    },
+                },
+            }, 200
+        except Exception as e:
+            return {ERROR: str(e)}, 500
+
+
+@api.route(f'{SYSTEM_EPS}/{SYSTEM_DROPDOWN_OPTIONS}')
+class SystemDropdownOptions(Resource):
+    """
+    HATEOAS: returns dropdown option lists from live DB reads.
+    - No query: all countries (value=code, label=name).
+    - ?country_code=USA: states for that country.
+    - ?state_code=NY: cities for that state.
+    """
+
+    @api.param('country_code', 'Filter states by country code', required=False)
+    @api.param('state_code', 'Filter cities by state code', required=False)
+    def get(self):
+        try:
+            country_code = request.args.get('country_code')
+            state_code = request.args.get('state_code')
+
+            if state_code:
+                cities_raw = cityqry.read()
+                cities = (
+                    cities_raw.values()
+                    if isinstance(cities_raw, dict)
+                    else cities_raw
+                )
+                options = []
+                for c in cities:
+                    sc = c.get('state_code', '')
+                    if str(sc).upper() != str(state_code).upper():
+                        continue
+                    name = c.get('name', '')
+                    options.append(
+                        _option(
+                            name,
+                            f'{name}, {sc}',
+                        )
+                    )
+                options.sort(key=lambda o: o['label'].lower())
+                return {
+                    'kind': 'cities',
+                    'state_code': state_code,
+                    'options': options,
+                    NUM_RECS: len(options),
+                    '_links': _dropdown_links(
+                        country_code=country_code,
+                        state_code=state_code,
+                    ),
+                }, 200
+
+            if country_code:
+                states_raw = stateqry.read()
+                states = (
+                    states_raw.values()
+                    if isinstance(states_raw, dict)
+                    else states_raw
+                )
+                options = []
+                for s in states:
+                    cc = s.get('country_code', '')
+                    if str(cc).upper() != str(country_code).upper():
+                        continue
+                    code = s.get('code', '')
+                    name = s.get('name', code)
+                    options.append(_option(code, f'{name} ({code})'))
+                options.sort(key=lambda o: o['label'].lower())
+                return {
+                    'kind': 'states',
+                    'country_code': country_code,
+                    'options': options,
+                    NUM_RECS: len(options),
+                    '_links': _dropdown_links(
+                        country_code=country_code,
+                        state_code=state_code,
+                    ),
+                }, 200
+
+            # countries by default
+            countries_raw = countryqry.read()
+            countries = (
+                countries_raw.values()
+                if isinstance(countries_raw, dict)
+                else countries_raw
+            )
+            options = []
+            for c in countries:
+                code = c.get('code', '')
+                name = c.get('name', code)
+                options.append(_option(code, f'{name} ({code})'))
+            options.sort(key=lambda o: o['label'].lower())
+            return {
+                'kind': 'countries',
+                'options': options,
+                NUM_RECS: len(options),
+                '_links': _dropdown_links(),
+            }, 200
         except Exception as e:
             return {ERROR: str(e)}, 500
 
