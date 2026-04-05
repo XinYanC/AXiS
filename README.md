@@ -93,15 +93,17 @@ The file should have columns: `country_name` and `country_code`.
 
 #### Load States
 
-Loads state/province data with latitude and longitude coordinates:
+Loads state/province data:
 
 ```bash
-python3 ETL/load_states_lat_long.py ETL/states_lat_long.tsv
+python3 ETL/load_states.py ETL/states.tsv
 ```
 
-The file should have columns: `code`, `latitude`, `longitude`, and `name`. The script automatically adds `country_code: 'USA'` to each state.
+The file should have columns: `country_code`, `code`, and `name` (e.g. `USA` / `NY` / `New York`). If the `country_code` column is omitted from the header, every row is treated as `USA`.
 
 **Note**: If states already exist in the database, the script will raise a duplicate key error. You may need to clear existing states first or modify the script to handle duplicates.
+
+**How dropdowns tie states to countries:** Each state document stores `country_code`. The API `GET /system/dropdown-options?country_code=USA` returns only states whose `country_code` matches (case-insensitive). Clients load countries first, then request states with the selected country’s code.
 
 #### Load Cities
 
@@ -117,7 +119,7 @@ Or with an optional state_code override (applies the same state_code to all citi
 python3 ETL/load_cities.py ETL/cities.tsv CA
 ```
 
-The CSV file should have columns: `city_name` and `state_code`.
+The file should have columns: `city_name`, `state_code`, `latitude`, `longitude`, and optional `country_code` (defaults to `USA` when missing or blank). Use `country_code` so the same `state_code` in two countries (e.g. `WA` for Washington state vs Western Australia) does not mix cities in `GET /system/dropdown-options?state_code=…&country_code=…`.
 
 #### Load Users
 
@@ -137,7 +139,7 @@ Loads marketplace listing data from a tab-separated file:
 python3 ETL/load_listings.py ETL/listings.tsv
 ```
 
-The file should have columns: `title`, `description`, `transaction_type`, `owner`, `meetup_location`, and optionally `images`, `price`, `num_likes`, `created_at`. Use `transaction_type` values `free` or `sell` only. The `owner` field should match a username from the users collection (load users first).
+The file should have columns: `title`, `description`, `transaction_type`, `owner`, `city`, `state`, `country`, and optionally `images`, `price`, `num_likes`, `created_at`. Use `transaction_type` values `free` or `sell` only. The `owner` field should match a username from the users collection (load users first).
 
 ## Environment Variables
 

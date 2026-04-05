@@ -93,7 +93,12 @@ def test_cities_create(mock_create):
     """Test the /cities/create endpoint."""
     # Arrange
     mock_create.return_value = '507f1f77bcf86cd799439011'
-    city_data = {"name": "Test City", "state_code": "CA"}
+    city_data = {
+        "name": "Test City",
+        "state_code": "CA",
+        "latitude": 34.05,
+        "longitude": -118.24,
+    }
 
     # Act
     resp = TEST_CLIENT.post(
@@ -441,7 +446,9 @@ def test_users_create(mock_create):
         "age": 25,
         "bio": "Test bio",
         "is_verified": False,
-        "location": "NY,USA"
+        "city": "New York",
+        "state": "NY",
+        "country": "USA",
     }
 
     # Act
@@ -715,7 +722,9 @@ def test_listings_create(mock_create):
         'description': 'LED lamp, good condition',
         'transaction_type': 'sell',
         'owner': 'student@nyu.edu',
-        'meetup_location': 'Bobst Library',
+        'city': 'New York',
+        'state': 'NY',
+        'country': 'USA',
     }
 
     resp = TEST_CLIENT.post(
@@ -923,12 +932,13 @@ def test_system_dropdown_options_states(mock_read):
 
 @patch('server.endpoints.cityqry.read')
 def test_system_dropdown_options_cities(mock_read):
-    """GET /system/dropdown-options?state_code= filters cities (case-insensitive)."""
-    mock_read.return_value = [
-        {'name': 'Buffalo', 'state_code': 'NY'},
-        {'name': 'Albany', 'state_code': 'NY'},
-        {'name': 'Houston', 'state_code': 'TX'},
-    ]
+    """GET /system/dropdown-options?state_code= returns USA cities by default."""
+    mock_read.return_value = {
+        'a': {'name': 'Buffalo', 'state_code': 'NY', 'country_code': 'USA'},
+        'b': {'name': 'Albany', 'state_code': 'NY', 'country_code': 'USA'},
+        'c': {'name': 'Houston', 'state_code': 'TX', 'country_code': 'USA'},
+        'd': {'name': 'Toronto', 'state_code': 'ON', 'country_code': 'CAN'},
+    }
     resp = TEST_CLIENT.get(
         f'{ep.SYSTEM_EPS}/{ep.SYSTEM_DROPDOWN_OPTIONS}?state_code=ny'
     )
@@ -936,7 +946,32 @@ def test_system_dropdown_options_cities(mock_read):
     data = resp.get_json()
     assert data['kind'] == 'cities'
     assert data['state_code'] == 'ny'
+    assert data['country_code'] == 'USA'
     assert data[ep.NUM_RECS] == 2
     city_names = {o['value'] for o in data['options']}
     assert city_names == {'Buffalo', 'Albany'}
+
+
+@patch('server.endpoints.cityqry.read')
+def test_system_dropdown_options_cities_with_country(mock_read):
+    """Cities list respects country_code (e.g. ON + CAN vs WA + USA)."""
+    mock_read.return_value = {
+        'a': {'name': 'Seattle', 'state_code': 'WA', 'country_code': 'USA'},
+        'b': {'name': 'Perth', 'state_code': 'WA', 'country_code': 'AUS'},
+    }
+    resp_usa = TEST_CLIENT.get(
+        f'{ep.SYSTEM_EPS}/{ep.SYSTEM_DROPDOWN_OPTIONS}'
+        f'?state_code=wa&country_code=USA'
+    )
+    assert resp_usa.status_code == OK
+    d_usa = resp_usa.get_json()
+    assert {o['value'] for o in d_usa['options']} == {'Seattle'}
+
+    resp_aus = TEST_CLIENT.get(
+        f'{ep.SYSTEM_EPS}/{ep.SYSTEM_DROPDOWN_OPTIONS}'
+        f'?state_code=wa&country_code=AUS'
+    )
+    assert resp_aus.status_code == OK
+    d_aus = resp_aus.get_json()
+    assert {o['value'] for o in d_aus['options']} == {'Perth'}
 

@@ -15,6 +15,14 @@ def get_temp_rec():
     return deepcopy(qry.SAMPLE_USER)
 
 
+def geo():
+    return {
+        qry.CITY: 'Test City',
+        qry.STATE: 'NY',
+        qry.COUNTRY: 'USA',
+    }
+
+
 @pytest.fixture(scope='function')
 def temp_user_no_del():
     temp_rec = get_temp_rec()
@@ -41,9 +49,9 @@ def sample_users():
     This fixture creates test users in the database and cleans them up afterwards.
     """
     users_to_create = [
-        {'username': 'testuser1', 'name': 'Test User One', 'email': 'test1@example.edu'},
-        {'username': 'testuser2', 'name': 'Test User Two', 'email': 'test2@example.edu'},
-        {'username': 'anotheruser', 'name': 'Another User', 'email': 'test3@example.edu'},
+        {'username': 'testuser1', 'name': 'Test User One', 'email': 'test1@example.edu', **geo()},
+        {'username': 'testuser2', 'name': 'Test User Two', 'email': 'test2@example.edu', **geo()},
+        {'username': 'anotheruser', 'name': 'Another User', 'email': 'test3@example.edu', **geo()},
     ]
     created_usernames = []
     # Clean up any existing users first
@@ -54,8 +62,9 @@ def sample_users():
     for user in users_to_create:
         user_id = qry.create(user)
         created_usernames.append(user[qry.USERNAME])
+    usernames = frozenset(u[qry.USERNAME] for u in users_to_create)
     try:
-        yield users_to_create
+        yield {'users': users_to_create, 'usernames': usernames}
     finally:
         # Clean up created users
         for username in created_usernames:
@@ -63,11 +72,12 @@ def sample_users():
 
 
 def test_search_users_by_name_with_fixture(sample_users):
+    ours = sample_users['usernames']
     # Search by name - partial match
     results = qry.search_users_by_name('Test')
     assert isinstance(results, dict)
-    # Check that we have users with 'Test' in the name
-    user_names = [user.get('name', '') for user in results.values()]
+    fixture_hits = {k: v for k, v in results.items() if k in ours}
+    user_names = [user.get('name', '') for user in fixture_hits.values()]
     assert 'Test User One' in user_names
     assert 'Test User Two' in user_names
     assert 'Another User' not in user_names  # Doesn't have 'Test' in name
@@ -75,29 +85,32 @@ def test_search_users_by_name_with_fixture(sample_users):
     # Search by username - should find users with 'testuser' in username
     results_username = qry.search_users_by_name('testuser')
     assert isinstance(results_username, dict)
-    usernames = [user.get('username', '') for user in results_username.values()]
+    fixture_u = {k: v for k, v in results_username.items() if k in ours}
+    usernames = [user.get('username', '') for user in fixture_u.values()]
     assert 'testuser1' in usernames
     assert 'testuser2' in usernames
     assert 'anotheruser' not in usernames  # Doesn't have 'testuser' in username
 
     # Search by name - case-insensitive match
     results_ci = qry.search_users_by_name('test user')
-    user_names_ci = [user.get('name', '') for user in results_ci.values()]
+    fixture_ci = {k: v for k, v in results_ci.items() if k in ours}
+    user_names_ci = [user.get('name', '') for user in fixture_ci.values()]
     assert 'Test User One' in user_names_ci
     assert 'Test User Two' in user_names_ci
 
     # Search by username - case-insensitive
     results_username_ci = qry.search_users_by_name('TESTUSER')
-    usernames_ci = [user.get('username', '') for user in results_username_ci.values()]
+    fixture_uci = {k: v for k, v in results_username_ci.items() if k in ours}
+    usernames_ci = [user.get('username', '') for user in fixture_uci.values()]
     assert 'testuser1' in usernames_ci
     assert 'testuser2' in usernames_ci
 
     # Search that matches both name and username
     results_both = qry.search_users_by_name('another')
     assert isinstance(results_both, dict)
-    # Should find 'anotheruser' by username
-    usernames_both = [user.get('username', '') for user in results_both.values()]
-    names_both = [user.get('name', '') for user in results_both.values()]
+    fixture_both = {k: v for k, v in results_both.items() if k in ours}
+    usernames_both = [user.get('username', '') for user in fixture_both.values()]
+    names_both = [user.get('name', '') for user in fixture_both.values()]
     assert 'anotheruser' in usernames_both or 'Another User' in names_both
 
 
@@ -116,7 +129,8 @@ def test_search_users_by_username():
     test_user = {
         'username': f'searchtest{timestamp}',
         'name': 'Different Name',
-        'email': 'searchtest@example.edu'
+        'email': 'searchtest@example.edu',
+        **geo(),
     }
     
     # Clean up first
@@ -196,6 +210,7 @@ def test_create_default_saved_listings_empty():
         'username': f'savedtest{timestamp}',
         'name': 'Saved Test',
         'email': f'savedtest{timestamp}@example.edu',
+        **geo(),
     }
     safe_delete(user)
     qry.clear_cache()
@@ -219,6 +234,7 @@ def test_create_with_saved_listings():
         'username': f'savedlist{timestamp}',
         'name': 'Saved List User',
         'email': f'savedlist{timestamp}@example.edu',
+        **geo(),
         qry.SAVED_LISTINGS: listing_ids,
     }
     safe_delete(user)
@@ -243,6 +259,7 @@ def test_create_sets_created_at():
         'username': f'createdattest{timestamp}',
         'name': 'Created At Test',
         'email': f'createdattest{timestamp}@example.edu',
+        **geo(),
     }
     safe_delete(user)
     qry.clear_cache()
@@ -264,6 +281,12 @@ def test_create_sets_created_at():
     ({'name': 'User'}, "non-empty 'username'"),
     ({'username': None}, "non-empty 'username'"),
     ({'username': 'test', 'email': 'invalid@example.com'}, "Email must end in .edu"),
+    ({
+        'username': 'nocity',
+        'email': 'nocity@example.edu',
+        qry.STATE: 'NY',
+        qry.COUNTRY: 'USA',
+    }, "non-empty 'city'"),
 ])
 def test_create_invalid_inputs(user_data, match):
     with pytest.raises(ValueError, match=match):
@@ -325,8 +348,8 @@ def test_create_duplicate_user():
     # Create unique users to avoid duplicate key errors
     import time
     timestamp = int(time.time() * 1000)
-    user1 = {'username': f'duptest{timestamp}', 'name': 'Test User 1', 'email': 'test1@example.edu'}
-    user2 = {'username': f'duptest{timestamp + 1}', 'name': 'Test User 2', 'email': 'test2@example.edu'}
+    user1 = {'username': f'duptest{timestamp}', 'name': 'Test User 1', 'email': 'test1@example.edu', **geo()}
+    user2 = {'username': f'duptest{timestamp + 1}', 'name': 'Test User 2', 'email': 'test2@example.edu', **geo()}
     
     # Clean up any existing records first
     safe_delete(user1)
@@ -347,9 +370,9 @@ def test_create_multiple_users_and_count():
     import time
     timestamp = int(time.time() * 1000)
     test_users = [
-        {'username': f'multiuser{timestamp}A', 'name': 'Multi User A', 'email': 'multia@example.edu'},
-        {'username': f'multiuser{timestamp}B', 'name': 'Multi User B', 'email': 'multib@example.edu'},
-        {'username': f'multiuser{timestamp}C', 'name': 'Multi User C', 'email': 'multic@example.edu'},
+        {'username': f'multiuser{timestamp}A', 'name': 'Multi User A', 'email': 'multia@example.edu', **geo()},
+        {'username': f'multiuser{timestamp}B', 'name': 'Multi User B', 'email': 'multib@example.edu', **geo()},
+        {'username': f'multiuser{timestamp}C', 'name': 'Multi User C', 'email': 'multic@example.edu', **geo()},
     ]
     
     # Clean up any existing records first
@@ -386,8 +409,13 @@ def test_update_by_username(temp_user_unique):
 def test_update_by_id(temp_user_unique):
     """Update user by MongoDB ObjectId."""
     rec_id, rec = temp_user_unique
-    updated = qry.update(rec_id, {'location': 'CA,USA'})
-    assert updated.get('location') == 'CA,USA'
+    updated = qry.update(
+        rec_id,
+        {qry.CITY: 'Los Angeles', qry.STATE: 'CA', qry.COUNTRY: 'USA'},
+    )
+    assert updated.get(qry.CITY) == 'Los Angeles'
+    assert updated.get(qry.STATE) == 'CA'
+    assert updated.get(qry.COUNTRY) == 'USA'
     assert updated.get(qry.USERNAME) == rec[qry.USERNAME]
 
 

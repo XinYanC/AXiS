@@ -36,9 +36,27 @@ def sample_cities():
     This fixture creates test cities in the database and cleans them up afterwards.
     """
     cities_to_create = [
-        {'name': 'New York', 'state_code': 'NY'},
-        {'name': 'Los Angeles', 'state_code': 'CA'},
-        {'name': 'New Orleans', 'state_code': 'LA'},
+        {
+            'name': 'New York',
+            'state_code': 'NY',
+            'country_code': 'USA',
+            'latitude': 40.71,
+            'longitude': -74.01,
+        },
+        {
+            'name': 'Los Angeles',
+            'state_code': 'CA',
+            'country_code': 'USA',
+            'latitude': 34.05,
+            'longitude': -118.24,
+        },
+        {
+            'name': 'New Orleans',
+            'state_code': 'LA',
+            'country_code': 'USA',
+            'latitude': 29.95,
+            'longitude': -90.07,
+        },
     ]
     created_ids = []
     # Clean up any existing cities first
@@ -47,10 +65,15 @@ def sample_cities():
     qry.clear_cache()
     # Now create the cities
     for city in cities_to_create:
-        city_id = qry.create(city)
+        qry.create(city)
         created_ids.append((city[qry.NAME], city[qry.STATE_CODE]))
+    keys = frozenset(
+        f"{c[qry.NAME]},{c[qry.STATE_CODE]},"
+        f"{(str(c.get(qry.COUNTRY_CODE) or 'USA').strip().upper() or 'USA')}"
+        for c in cities_to_create
+    )
     try:
-        yield cities_to_create
+        yield {'cities': cities_to_create, 'keys': keys}
     finally:
         # Clean up created cities
         for name, state_code in created_ids:
@@ -58,18 +81,20 @@ def sample_cities():
 
 
 def test_search_cities_by_name_with_fixture(sample_cities):
+    ours = sample_cities['keys']
     # partial match
     results = qry.search_cities_by_name('New')
     assert isinstance(results, dict)
-    # Check that we have cities with 'New' in the name
-    city_names = [city.get('name', '') for city in results.values()]
+    fixture_hits = {k: v for k, v in results.items() if k in ours}
+    city_names = [city.get('name', '') for city in fixture_hits.values()]
     assert 'New York' in city_names
     assert 'New Orleans' in city_names
     assert 'Los Angeles' not in city_names
 
     # case-insensitive match
     results_ci = qry.search_cities_by_name('los angeles')
-    city_names_ci = [city.get('name', '') for city in results_ci.values()]
+    fixture_ci = {k: v for k, v in results_ci.items() if k in ours}
+    city_names_ci = [city.get('name', '') for city in fixture_ci.values()]
     assert 'Los Angeles' in city_names_ci
 
 
@@ -117,12 +142,14 @@ def test_good_create():
 
     # city data should be stored correctly in database
     cities = qry.read()
-    city_key = f'{qry.SAMPLE_CITY[qry.NAME]},{qry.SAMPLE_CITY[qry.STATE_CODE]}'
-    assert city_key in cities
-    created_city = cities[city_key]
+    assert qry.SAMPLE_KEY in cities
+    created_city = cities[qry.SAMPLE_KEY]
     assert created_city['name'] == qry.SAMPLE_CITY['name']
     assert created_city['state_code'] == qry.SAMPLE_CITY['state_code']
-    
+    assert created_city['latitude'] == qry.SAMPLE_CITY['latitude']
+    assert created_city['longitude'] == qry.SAMPLE_CITY['longitude']
+    assert created_city['country_code'] == qry.SAMPLE_CITY['country_code']
+
     # Clean up
     safe_delete(temp_rec)
 
@@ -133,6 +160,9 @@ def test_good_create():
     ({'name': 'City'}, "state_code"),
     ({'name': None, 'state_code': 'NY'}, "name"),
     ({'name': 'Test City', 'state_code': None}, "state_code"),
+    ({'name': 'X', 'state_code': 'NY'}, "latitude"),
+    ({'name': 'X', 'state_code': 'NY', 'latitude': 1}, "longitude"),
+    ({'name': 'X', 'state_code': 'NY', 'latitude': 'a', 'longitude': 1}, "latitude"),
 ])
 def test_create_invalid_inputs(city_data, match):
     with pytest.raises(ValueError):
@@ -220,16 +250,32 @@ def test_delete_returns_true_and_removes(temp_city_unique):
 
 def test_read_returns_expected_fields(temp_city_unique):
     cities = qry.read()
-    for data in cities.values():
-        assert 'name' in data
-        assert 'state_code' in data
+    assert qry.SAMPLE_KEY in cities
+    data = cities[qry.SAMPLE_KEY]
+    assert 'name' in data
+    assert 'state_code' in data
+    assert 'country_code' in data
+    assert 'latitude' in data
+    assert 'longitude' in data
 
 def test_create_duplicate_city():
     # Create unique cities to avoid duplicate key errors
     import time
     timestamp = int(time.time() * 1000)
-    city1 = {'name': f'Duplicate Test City {timestamp}', 'state_code': 'DT'}
-    city2 = {'name': f'Duplicate Test City {timestamp + 1}', 'state_code': 'DT'}
+    city1 = {
+        'name': f'Duplicate Test City {timestamp}',
+        'state_code': 'DT',
+        'latitude': 40.0,
+        'longitude': -74.0,
+        'country_code': 'USA',
+    }
+    city2 = {
+        'name': f'Duplicate Test City {timestamp + 1}',
+        'state_code': 'DT',
+        'latitude': 41.0,
+        'longitude': -75.0,
+        'country_code': 'USA',
+    }
     
     # Clean up any existing records first
     safe_delete(city1)
@@ -281,9 +327,27 @@ def test_create_multiple_cities_and_count():
     import time
     timestamp = int(time.time() * 1000)
     test_cities = [
-        {'name': f'Multi City {timestamp} A', 'state_code': 'MC'},
-        {'name': f'Multi City {timestamp} B', 'state_code': 'MC'},
-        {'name': f'Multi City {timestamp} C', 'state_code': 'MC'},
+        {
+            'name': f'Multi City {timestamp} A',
+            'state_code': 'MC',
+            'latitude': 40.0,
+            'longitude': -74.0,
+            'country_code': 'USA',
+        },
+        {
+            'name': f'Multi City {timestamp} B',
+            'state_code': 'MC',
+            'latitude': 40.1,
+            'longitude': -74.1,
+            'country_code': 'USA',
+        },
+        {
+            'name': f'Multi City {timestamp} C',
+            'state_code': 'MC',
+            'latitude': 40.2,
+            'longitude': -74.2,
+            'country_code': 'USA',
+        },
     ]
     
     # Clean up any existing records first
@@ -308,7 +372,7 @@ def test_create_multiple_cities_and_count():
 
 def test_main_prints_read(monkeypatch, capsys):
     """Patch qry.read to return a known list and verify main() prints it."""
-    sample = [{'name': 'Printed City', 'state_code': 'PC'}]
+    sample = [{'name': 'Printed City', 'state_code': 'PC', 'country_code': 'USA'}]
 
     # Patch the module-level read function used by main()
     monkeypatch.setattr(qry, 'read', lambda: sample)
@@ -364,9 +428,27 @@ def test_delete_by_id_success_and_not_found(monkeypatch):
 def test_unicode_and_special_characters_in_names():
     """Test cities with unicode and special characters."""
     test_cases = [
-        {'name': 'San José', 'state_code': 'CA'},
-        {'name': 'München', 'state_code': 'BY'},
-        {'name': 'København', 'state_code': 'DK'},
+        {
+            'name': 'San José',
+            'state_code': 'CA',
+            'country_code': 'USA',
+            'latitude': 37.35,
+            'longitude': -121.89,
+        },
+        {
+            'name': 'München',
+            'state_code': 'BY',
+            'country_code': 'DEU',
+            'latitude': 48.14,
+            'longitude': 11.58,
+        },
+        {
+            'name': 'København',
+            'state_code': 'DK',
+            'country_code': 'DNK',
+            'latitude': 55.68,
+            'longitude': 12.57,
+        },
     ]
     
     # Clean up any existing records first
@@ -397,9 +479,9 @@ def test_search_cities_by_name_very_long_string():
 
 def test_search_trimming_and_case_insensitivity():
     sample_db = [
-        {'name': 'Los Angeles', 'state_code': 'CA'},
-        {'name': 'Los Angeles County', 'state_code': 'CA'},
-        {'name': 'San Diego', 'state_code': 'CA'},
+        {'name': 'Los Angeles', 'state_code': 'CA', 'country_code': 'USA'},
+        {'name': 'Los Angeles County', 'state_code': 'CA', 'country_code': 'USA'},
+        {'name': 'San Diego', 'state_code': 'CA', 'country_code': 'USA'},
     ]
 
     # Clear cache and patch the database read to return our sample list

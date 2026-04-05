@@ -17,7 +17,9 @@ DESCRIPTION = 'description'
 IMAGES = 'images'
 TRANSACTION_TYPE = 'transaction_type'
 OWNER = 'owner'
-MEETUP_LOCATION = 'meetup_location'
+CITY = 'city'
+STATE = 'state'
+COUNTRY = 'country'
 PRICE = 'price'
 NUM_LIKES = 'num_likes'
 CREATED_AT = 'created_at'
@@ -30,7 +32,9 @@ SAMPLE_LISTING = {
     IMAGES: [],
     TRANSACTION_TYPE: 'sell',
     OWNER: 'student@nyu.edu',
-    MEETUP_LOCATION: 'Bobst Library',
+    CITY: 'New York',
+    STATE: 'NY',
+    COUNTRY: 'USA',
     PRICE: 25.00,
     NUM_LIKES: 0,
 }
@@ -92,9 +96,10 @@ def _validate_listing(listing: dict) -> None:
     owner = listing.get(OWNER)
     if OWNER not in listing or not owner or not str(owner).strip():
         raise ValueError("Listing must have a non-empty 'owner'.")
-    loc = listing.get(MEETUP_LOCATION)
-    if MEETUP_LOCATION not in listing or not loc or not str(loc).strip():
-        raise ValueError("Listing must have a non-empty 'meetup_location'.")
+    for fld in (CITY, STATE, COUNTRY):
+        v = listing.get(fld)
+        if fld not in listing or not v or not str(v).strip():
+            raise ValueError(f"Listing must have a non-empty '{fld}'.")
     if IMAGES in listing and not isinstance(listing[IMAGES], list):
         raise ValueError("'images' must be a list of strings.")
     if IMAGES in listing and listing[IMAGES]:
@@ -139,10 +144,11 @@ def _validate_listing_update(update_dict: dict) -> None:
                 f"{sorted(VALID_TRANSACTION_TYPES)}, got "
                 f"{repr(update_dict[TRANSACTION_TYPE])}"
             )
-    if MEETUP_LOCATION in update_dict:
-        loc = update_dict[MEETUP_LOCATION]
-        if not loc or not str(loc).strip():
-            raise ValueError("'meetup_location' must be non-empty.")
+    for fld in (CITY, STATE, COUNTRY):
+        if fld in update_dict:
+            v = update_dict[fld]
+            if v is None or not str(v).strip():
+                raise ValueError(f"'{fld}' must be non-empty.")
     if PRICE in update_dict and update_dict[PRICE] is not None:
         try:
             float(update_dict[PRICE])
@@ -158,7 +164,14 @@ def _validate_listing_update(update_dict: dict) -> None:
 
 
 LISTING_UPDATE_ALLOWED = {
-    TITLE, DESCRIPTION, TRANSACTION_TYPE, MEETUP_LOCATION, PRICE, NUM_LIKES
+    TITLE,
+    DESCRIPTION,
+    TRANSACTION_TYPE,
+    CITY,
+    STATE,
+    COUNTRY,
+    PRICE,
+    NUM_LIKES,
 }
 
 
@@ -167,7 +180,7 @@ def update(listing_id: str, update_dict: dict) -> dict:
     """
     Update a listing by its MongoDB _id.
     Allowed fields: title, description, transaction_type,
-    meetup_location, price, num_likes. Returns the updated listing.
+    city, state, country, price, num_likes. Returns the updated listing.
     """
     if not isinstance(listing_id, str):
         raise ValueError(
@@ -186,7 +199,7 @@ def update(listing_id: str, update_dict: dict) -> dict:
         raise ValueError(
             "Update must contain at least one allowed field: "
             "title, description, images, transaction_type, owner, "
-            "meetup_location, price, num_likes."
+            "city, state, country, price, num_likes."
         )
     _validate_listing_update(allowed)
     result = dbc.update(LISTING_COLLECTION, {dbc.MONGO_ID: obj_id}, allowed)

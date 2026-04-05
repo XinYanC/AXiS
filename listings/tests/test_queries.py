@@ -38,21 +38,27 @@ def sample_listings():
             qry.DESCRIPTION: 'Stewart 9th ed.',
             qry.TRANSACTION_TYPE: 'sell',
             qry.OWNER: 'a@nyu.edu',
-            qry.MEETUP_LOCATION: 'Library',
+            qry.CITY: 'New York',
+            qry.STATE: 'NY',
+            qry.COUNTRY: 'USA',
         },
         {
             qry.TITLE: 'Desk Lamp',
             qry.DESCRIPTION: 'LED, good condition',
             qry.TRANSACTION_TYPE: 'sell',
             qry.OWNER: 'b@nyu.edu',
-            qry.MEETUP_LOCATION: 'Dorm A',
+            qry.CITY: 'Brooklyn',
+            qry.STATE: 'NY',
+            qry.COUNTRY: 'USA',
         },
         {
             qry.TITLE: 'Free Chair',
             qry.DESCRIPTION: 'Donation',
             qry.TRANSACTION_TYPE: 'free',
             qry.OWNER: 'c@nyu.edu',
-            qry.MEETUP_LOCATION: 'Lobby',
+            qry.CITY: 'Queens',
+            qry.STATE: 'NY',
+            qry.COUNTRY: 'USA',
         },
     ]
     created_ids = []
@@ -61,7 +67,10 @@ def sample_listings():
         rec_id = qry.create(listing)
         created_ids.append(rec_id)
     try:
-        yield listings_to_create
+        yield {
+            'listings': listings_to_create,
+            'ids': frozenset(created_ids),
+        }
     finally:
         for rec_id in created_ids:
             safe_delete(rec_id)
@@ -108,7 +117,7 @@ def test_good_create():
     ({qry.TITLE: 'A', qry.DESCRIPTION: 'B'}, "transaction_type"),
     ({qry.TITLE: 'A', qry.DESCRIPTION: 'B', qry.TRANSACTION_TYPE: 'invalid'}, "one of"),
     ({qry.TITLE: 'A', qry.DESCRIPTION: 'B', qry.TRANSACTION_TYPE: 'sell'}, "owner"),
-    ({qry.TITLE: 'A', qry.DESCRIPTION: 'B', qry.TRANSACTION_TYPE: 'sell', qry.OWNER: 'x@nyu.edu'}, "meetup_location"),
+    ({qry.TITLE: 'A', qry.DESCRIPTION: 'B', qry.TRANSACTION_TYPE: 'sell', qry.OWNER: 'x@nyu.edu'}, "city"),
 ])
 def test_create_invalid_inputs(listing_data, match):
     with pytest.raises(ValueError, match=match):
@@ -123,7 +132,9 @@ def test_create_invalid_transaction_type(bad_type):
         qry.DESCRIPTION: 'A description',
         qry.TRANSACTION_TYPE: bad_type,
         qry.OWNER: 'x@nyu.edu',
-        qry.MEETUP_LOCATION: 'Library',
+        qry.CITY: 'NYC',
+        qry.STATE: 'NY',
+        qry.COUNTRY: 'USA',
     }
     with pytest.raises(ValueError):
         qry.create(listing)
@@ -136,7 +147,9 @@ def test_create_all_valid_transaction_types(valid_type):
         qry.DESCRIPTION: 'A description',
         qry.TRANSACTION_TYPE: valid_type,
         qry.OWNER: 'x@nyu.edu',
-        qry.MEETUP_LOCATION: 'Library',
+        qry.CITY: 'NYC',
+        qry.STATE: 'NY',
+        qry.COUNTRY: 'USA',
     }
     qry.clear_cache()
     rec_id = qry.create(listing)
@@ -179,15 +192,19 @@ def test_read(temp_listing_unique):
 
 
 def test_read_returns_expected_fields(temp_listing_unique):
+    rec_id, _ = temp_listing_unique
     listings = qry.read()
-    for data in listings.values():
-        assert qry.TITLE in data
-        assert qry.DESCRIPTION in data
-        assert qry.TRANSACTION_TYPE in data
-        assert qry.OWNER in data
-        assert qry.MEETUP_LOCATION in data
-        assert qry.CREATED_AT in data
-        assert qry.NUM_LIKES in data
+    assert rec_id in listings
+    data = listings[rec_id]
+    assert qry.TITLE in data
+    assert qry.DESCRIPTION in data
+    assert qry.TRANSACTION_TYPE in data
+    assert qry.OWNER in data
+    assert qry.CITY in data
+    assert qry.STATE in data
+    assert qry.COUNTRY in data
+    assert qry.CREATED_AT in data
+    assert qry.NUM_LIKES in data
 
 
 def test_is_valid_id(temp_listing_unique):
@@ -305,7 +322,9 @@ def test_create_invalid_num_likes(bad_num_likes):
         qry.DESCRIPTION: 'A description',
         qry.TRANSACTION_TYPE: 'sell',
         qry.OWNER: 'x@nyu.edu',
-        qry.MEETUP_LOCATION: 'Library',
+        qry.CITY: 'NYC',
+        qry.STATE: 'NY',
+        qry.COUNTRY: 'USA',
         qry.NUM_LIKES: bad_num_likes,
     }
     with pytest.raises(ValueError, match='num_likes'):

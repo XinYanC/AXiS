@@ -12,8 +12,6 @@ ID = 'id'
 NAME = 'name'
 CODE = 'code'
 COUNTRY_CODE = 'country_code'
-LATITUDE = 'latitude'
-LONGITUDE = 'longitude'
 
 SAMPLE_CODE = 'NY'
 SAMPLE_COUNTRY = 'USA'

@@ -14,12 +14,23 @@ CITY_COLLECTION = 'cities'
 ID = 'id'
 NAME = 'name'
 STATE_CODE = 'state_code'
+COUNTRY_CODE = 'country_code'
+LATITUDE = 'latitude'
+LONGITUDE = 'longitude'
+
+_DEFAULT_COUNTRY = 'USA'
 
 SAMPLE_CITY = {
     NAME: 'Los Angeles',
     STATE_CODE: 'CA',
+    COUNTRY_CODE: _DEFAULT_COUNTRY,
+    LATITUDE: 34.0522,
+    LONGITUDE: -118.2437,
 }
-SAMPLE_KEY = f'{SAMPLE_CITY[NAME]},{SAMPLE_CITY[STATE_CODE]}'
+SAMPLE_KEY = (
+    f'{SAMPLE_CITY[NAME]},{SAMPLE_CITY[STATE_CODE]},'
+    f'{SAMPLE_CITY[COUNTRY_CODE]}'
+)
 
 cache = None
 
@@ -38,9 +49,16 @@ def load_cache():
     cache = {}
     cities = dbc.read(CITY_COLLECTION)
     for city in cities:
-        # since json can't use tuple as key, use comma-delimited string
-        key = f'{city[NAME]},{city[STATE_CODE]}'
-        cache[key] = city
+        cc = (
+            str(city.get(COUNTRY_CODE, '') or '')
+            .strip()
+            .upper()
+            or _DEFAULT_COUNTRY
+        )
+        key = f'{city[NAME]},{city[STATE_CODE]},{cc}'
+        doc = dict(city)
+        doc[COUNTRY_CODE] = cc
+        cache[key] = doc
 
 
 def clear_cache():
@@ -62,6 +80,17 @@ def num_cities() -> int:
     return len(cache)
 
 
+def _require_float_coord(city: dict, fld: str) -> None:
+    if fld not in city or city[fld] is None:
+        raise ValueError(f"City must have '{fld}'.")
+    if isinstance(city[fld], str) and not str(city[fld]).strip():
+        raise ValueError(f"City must have a non-empty '{fld}'.")
+    try:
+        float(city[fld])
+    except (TypeError, ValueError):
+        raise ValueError(f"'{fld}' must be a number.")
+
+
 @needs_cache
 def create(city, reload=True):
     if not isinstance(city, dict):
@@ -70,13 +99,29 @@ def create(city, reload=True):
         raise ValueError("City must have a non-empty 'name'.")
     if STATE_CODE not in city or not city[STATE_CODE]:
         raise ValueError("City must have a non-empty 'state_code'.")
+    _require_float_coord(city, LATITUDE)
+    _require_float_coord(city, LONGITUDE)
 
     name = city.get(NAME)
     state_code = city.get(STATE_CODE)
-    if f'{name},{state_code}' in cache:
-        raise ValueError(f'Duplicate key: {name=}; {state_code=}')
+    cc = (
+        str(city.get(COUNTRY_CODE, '') or '')
+        .strip()
+        .upper()
+        or _DEFAULT_COUNTRY
+    )
+    cache_key = f'{name},{state_code},{cc}'
+    if cache_key in cache:
+        raise ValueError(
+            f'Duplicate key: {name=}; {state_code=}; {COUNTRY_CODE}={cc!r}'
+        )
 
-    rec_id = dbc.create(CITY_COLLECTION, city)
+    doc = dict(city)
+    doc[COUNTRY_CODE] = cc
+    doc[LATITUDE] = float(doc[LATITUDE])
+    doc[LONGITUDE] = float(doc[LONGITUDE])
+
+    rec_id = dbc.create(CITY_COLLECTION, doc)
     if reload:
         load_cache()
     return rec_id
@@ -94,7 +139,7 @@ def delete(name_or_id: str, state_code: str = None) -> bool:
         if ret < 1:
             raise ValueError(f'City not found: {name_or_id}')
     else:
-        # Otherwise, treat as name and state_code and delete from database
+        # name + state_code (+ optional country_code via kwargs in future)
         ret = dbc.delete(
             CITY_COLLECTION, {NAME: name_or_id, STATE_CODE: state_code}
         )

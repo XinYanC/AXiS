@@ -21,7 +21,9 @@ AGE = 'age'
 BIO = 'bio'
 IS_VERIFIED = 'is_verified'
 EMAIL = 'email'  # must end in .edu
-LOCATION = 'location'
+CITY = 'city'
+STATE = 'state'
+COUNTRY = 'country'
 CREATED_AT = 'created_at'
 UPDATED_AT = 'updated_at'
 SAVED_LISTINGS = 'saved_listings'  # list of listing IDs the user has liked
@@ -34,7 +36,9 @@ SAMPLE_USER = {
     BIO: 'This is a test user',
     IS_VERIFIED: False,
     EMAIL: 'testuser@example.edu',
-    LOCATION: 'NY,USA',
+    CITY: 'New York',
+    STATE: 'NY',
+    COUNTRY: 'USA',
     SAVED_LISTINGS: [],
 }
 SAMPLE_KEY = SAMPLE_USER[USERNAME]
@@ -85,6 +89,9 @@ def create(user, reload=True):
     if EMAIL in user and user[EMAIL]:
         if not user[EMAIL].endswith('.edu'):
             raise ValueError("Email must end in .edu")
+    for fld in (CITY, STATE, COUNTRY):
+        if fld not in user or not str(user.get(fld) or '').strip():
+            raise ValueError(f"User must have a non-empty '{fld}'.")
     if PASSWORD in user and user[PASSWORD]:
         password_bytes = user[PASSWORD].encode('utf-8')
         hashed = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
@@ -128,7 +135,7 @@ def delete(username_or_id: str) -> bool:
 
 
 USER_UPDATE_ALLOWED = {
-    NAME, AGE, BIO, IS_VERIFIED, LOCATION, SAVED_LISTINGS, PASSWORD
+    NAME, AGE, BIO, IS_VERIFIED, CITY, STATE, COUNTRY, SAVED_LISTINGS, PASSWORD
 }
 
 
@@ -136,7 +143,7 @@ USER_UPDATE_ALLOWED = {
 def update(username_or_id: str, update_dict: dict) -> dict:
     """
     Update a user by username or MongoDB ObjectId.
-    Allowed fields: name, age, bio, is_verified, location,
+    Allowed fields: name, age, bio, is_verified, city, state, country,
     saved_listings, password (will be hashed).
     Username and email cannot be changed.
     Returns the updated user from cache (without password).
@@ -149,7 +156,7 @@ def update(username_or_id: str, update_dict: dict) -> dict:
     if not allowed:
         raise ValueError(
             "Update must contain at least one allowed field: "
-            "name, age, bio, is_verified, email, location, "
+            "name, age, bio, is_verified, email, city, state, country, "
             "saved_listings, password."
         )
     if USERNAME in update_dict:
@@ -157,6 +164,11 @@ def update(username_or_id: str, update_dict: dict) -> dict:
     if SAVED_LISTINGS in allowed and allowed[SAVED_LISTINGS] is not None:
         if not isinstance(allowed[SAVED_LISTINGS], list):
             raise ValueError("'saved_listings' must be a list.")
+    for fld in (CITY, STATE, COUNTRY):
+        if fld in allowed and (
+            allowed[fld] is None or not str(allowed[fld]).strip()
+        ):
+            raise ValueError(f"'{fld}' must be non-empty.")
     if PASSWORD in allowed and allowed[PASSWORD]:
         password_bytes = str(allowed[PASSWORD]).encode('utf-8')
         allowed[PASSWORD] = bcrypt.hashpw(

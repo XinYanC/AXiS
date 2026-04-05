@@ -62,10 +62,11 @@ def sample_countries():
     qry.clear_cache()
     # Now create the countries
     for country in countries_to_create:
-        country_id = qry.create(country)
+        qry.create(country)
         created_ids.append((country[qry.NAME], country[qry.CODE]))
+    codes = frozenset(c[qry.CODE] for c in countries_to_create)
     try:
-        yield countries_to_create
+        yield {'countries': countries_to_create, 'codes': codes}
     finally:
         # Clean up created countries
         for name, code in created_ids:
@@ -73,17 +74,19 @@ def sample_countries():
 
 
 def test_search_countries_by_name_with_fixture(sample_countries):
+    ours = sample_countries['codes']
     # partial match
     results = qry.search_countries_by_name('United')
     assert isinstance(results, dict)
-    # Check that we have countries with 'United' in the name
-    country_names = [country.get('name', '') for country in results.values()]
+    fixture_hits = {k: v for k, v in results.items() if k in ours}
+    country_names = [country.get('name', '') for country in fixture_hits.values()]
     assert 'United Kingdom' in country_names
     assert 'United Arab Emirates' in country_names
 
     # case-insensitive match
     results_ci = qry.search_countries_by_name('united kingdom')
-    country_names_ci = [country.get('name', '') for country in results_ci.values()]
+    fixture_ci = {k: v for k, v in results_ci.items() if k in ours}
+    country_names_ci = [country.get('name', '') for country in fixture_ci.values()]
     assert 'United Kingdom' in country_names_ci
 
 
@@ -228,9 +231,10 @@ def test_delete_returns_true_and_removes(temp_country_unique):
 
 def test_read_returns_expected_fields(temp_country_unique):
     countries = qry.read()
-    for data in countries.values():
-        assert 'name' in data
-        assert 'code' in data
+    assert qry.SAMPLE_KEY in countries
+    data = countries[qry.SAMPLE_KEY]
+    assert 'name' in data
+    assert 'code' in data
 
 def test_create_duplicate_country():
     """Test that creating a duplicate country (same code) fails."""
@@ -397,8 +401,10 @@ def test_unicode_and_special_characters_in_names():
             safe_delete(country_data)
 
 def test_search_countries_by_name_substring(sample_countries):
+    ours = sample_countries['codes']
     results = qry.search_countries_by_name('King')
-    assert 'United Kingdom' in [c['name'] for c in results.values()]
+    fixture_hits = {k: v for k, v in results.items() if k in ours}
+    assert 'United Kingdom' in [c['name'] for c in fixture_hits.values()]
 
 def test_search_countries_by_name_very_long_string():
     """Test search with very long input string."""

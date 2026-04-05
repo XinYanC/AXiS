@@ -1,0 +1,78 @@
+country_code	code	name
+USA	AK	Alaska
+USA	AL	Alabama
+USA	AR	Arkansas
+USA	AZ	Arizona
+USA	CA	California
+USA	CO	Colorado
+USA	CT	Connecticut
+USA	DC	District of Columbia
+USA	DE	Delaware
+USA	FL	Florida
+USA	GA	Georgia
+USA	HI	Hawaii
+USA	IA	Iowa
+USA	ID	Idaho
+USA	IL	Illinois
+USA	IN	Indiana
+USA	KS	Kansas
+USA	KY	Kentucky
+USA	LA	Louisiana
+USA	MA	Massachusetts
+USA	MD	Maryland
+USA	ME	Maine
+USA	MI	Michigan
+USA	MN	Minnesota
+USA	MO	Missouri
+USA	MS	Mississippi
+USA	MT	Montana
+USA	NC	North Carolina
+USA	ND	North Dakota
+USA	NE	Nebraska
+USA	NH	New Hampshire
+USA	NJ	New Jersey
+USA	NM	New Mexico
+USA	NV	Nevada
+USA	NY	New York
+USA	OH	Ohio
+USA	OK	Oklahoma
+USA	OR	Oregon
+USA	PA	Pennsylvania
+USA	PR	Puerto Rico
+USA	RI	Rhode Island
+USA	SC	South Carolina
+USA	SD	South Dakota
+USA	TN	Tennessee
+USA	TX	Texas
+USA	UT	Utah
+USA	VA	Virginia
+USA	VT	Vermont
+USA	WA	Washington
+USA	WI	Wisconsin
+USA	WV	West Virginia
+USA	WY	Wyoming
+CAN	AB	Alberta
+CAN	BC	British Columbia
+CAN	MB	Manitoba
+CAN	NB	New Brunswick
+CAN	NL	Newfoundland and Labrador
+CAN	NS	Nova Scotia
+CAN	NT	Northwest Territories
+CAN	NU	Nunavut
+CAN	ON	Ontario
+CAN	PE	Prince Edward Island
+CAN	QC	Quebec
+CAN	SK	Saskatchewan
+CAN	YT	Yukon
+GBR	ENG	England
+GBR	NIR	Northern Ireland
+GBR	SCT	Scotland
+GBR	WLS	Wales
+AUS	ACT	Australian Capital Territory
+AUS	NSW	New South Wales
+AUS	NT	Northern Territory
+AUS	QLD	Queensland
+AUS	SA	South Australia
+AUS	TAS	Tasmania
+AUS	VIC	Victoria
+AUS	WA	Western Australia

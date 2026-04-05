@@ -14,11 +14,35 @@ from listings.queries import (
     IMAGES,
     TRANSACTION_TYPE,
     OWNER,
-    MEETUP_LOCATION,
+    CITY,
+    STATE,
+    COUNTRY,
     PRICE,
     NUM_LIKES,
     create,
 )
+
+
+def _normalize_header(h: str) -> str:
+    return h.strip().lower().replace(' ', '_')
+
+
+# TSV columns mapped into listing fields (others ignored, e.g. created_at)
+_FIELD_BY_HEADER = {
+    'title': TITLE,
+    'description': DESCRIPTION,
+    'transaction_type': TRANSACTION_TYPE,
+    'owner': OWNER,
+    'city': CITY,
+    'state': STATE,
+    'country': COUNTRY,
+    'price': PRICE,
+    'num_likes': NUM_LIKES,
+    'images': IMAGES,
+}
+
+_REQUIRED_HEADERS = {'title', 'description', 'transaction_type', 'owner',
+                     'city', 'state', 'country'}
 
 
 def extract(flnm: str) -> list:
@@ -35,28 +59,30 @@ def extract(flnm: str) -> list:
 
 
 def transform(listing_list: list) -> list:
-    rev_list = []
-    col_names = [c.strip() for c in listing_list.pop(0)]
+    if not listing_list:
+        print('Listing file is empty.', file=sys.stderr)
+        sys.exit(1)
 
-    for row in listing_list:
+    raw_headers = listing_list.pop(0)
+    col_names = [_normalize_header(c) for c in raw_headers]
+
+    missing = _REQUIRED_HEADERS - set(col_names)
+    if missing:
+        print(
+            f'Missing required column(s): {", ".join(sorted(missing))}',
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    rev_list = []
+    for row_idx, row in enumerate(listing_list, start=2):
         listing_dict = {}
-        for i, fld in enumerate(col_names):
-            if i >= len(row):
+        for i, hdr in enumerate(col_names):
+            if hdr not in _FIELD_BY_HEADER:
                 continue
             val = row[i].strip() if i < len(row) else ''
-            # Normalize field names to match queries
-            key = fld.lower().replace(' ', '_')
-            if key == 'title':
-                listing_dict[TITLE] = val
-            elif key == 'description':
-                listing_dict[DESCRIPTION] = val
-            elif key == 'transaction_type':
-                listing_dict[TRANSACTION_TYPE] = val
-            elif key == 'owner':
-                listing_dict[OWNER] = val
-            elif key in ('meetup_location', 'location'):
-                listing_dict[MEETUP_LOCATION] = val
-            elif key == 'price':
+            key = _FIELD_BY_HEADER[hdr]
+            if key == PRICE:
                 if val == '' or val.lower() == 'none':
                     listing_dict[PRICE] = None
                 else:
@@ -64,7 +90,7 @@ def transform(listing_list: list) -> list:
                         listing_dict[PRICE] = float(val)
                     except ValueError:
                         listing_dict[PRICE] = None
-            elif key == 'num_likes':
+            elif key == NUM_LIKES:
                 if val == '' or val.lower() == 'none':
                     listing_dict[NUM_LIKES] = 0
                 else:
@@ -72,13 +98,27 @@ def transform(listing_list: list) -> list:
                         listing_dict[NUM_LIKES] = int(val)
                     except ValueError:
                         listing_dict[NUM_LIKES] = 0
-            elif key == 'images':
+            elif key == IMAGES:
                 if val == '' or val.lower() == 'none':
                     listing_dict[IMAGES] = []
                 else:
-                    listing_dict[IMAGES] = [u.strip() for u in val.split(',') if u.strip()]
+                    listing_dict[IMAGES] = [
+                        u.strip() for u in val.split(',') if u.strip()
+                    ]
             else:
-                listing_dict[fld] = val
+                listing_dict[key] = val
+
+        for req in _REQUIRED_HEADERS:
+            fld = _FIELD_BY_HEADER[req]
+            v = listing_dict.get(fld)
+            if v is None or (isinstance(v, str) and not v.strip()):
+                print(
+                    f'Row {row_idx}: missing or empty required field '
+                    f'"{req}"',
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+
         rev_list.append(listing_dict)
 
     return rev_list
@@ -92,9 +132,9 @@ def load(rev_list: list) -> None:
 def main():
     if len(sys.argv) < 2:
         print('USAGE: load_listings.py <tsvfile>')
-        print('  tsvfile: Tab-separated file with columns such as:')
-        print('    title, description, transaction_type, owner, meetup_location,')
-        print('    price, num_likes, images')
+        print('  Required columns: title, description, transaction_type,')
+        print('    owner, city, state, country')
+        print('  Optional: price, num_likes, images')
         sys.exit(1)
 
     listing_list = extract(sys.argv[1])
