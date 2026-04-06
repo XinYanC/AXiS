@@ -38,8 +38,12 @@ def load_cache():
     cache = {}
     countries = dbc.read(COUNTRY_COLLECTION)
     for country in countries:
-        key = country[CODE]  # use country code as key
-        cache[key] = country
+        code = str(country.get(CODE, '') or '').strip().upper()
+        if not code:
+            continue
+        doc = dict(country)
+        doc[CODE] = code
+        cache[code] = doc
 
 
 def clear_cache():

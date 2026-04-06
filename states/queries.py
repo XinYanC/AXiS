@@ -22,6 +22,8 @@ SAMPLE_STATE = {
     COUNTRY_CODE: SAMPLE_COUNTRY,
 }
 
+DEFAULT_COUNTRY = 'USA'
+
 cache = None
 
 
@@ -39,9 +41,20 @@ def load_cache():
     cache = {}
     states = dbc.read(STATE_COLLECTION)
     for state in states:
-        # since json can't use tuple as key, use comma-delimited string
-        key = f'{state[CODE]},{state[COUNTRY_CODE]}'
-        cache[key] = state
+        code = str(state.get(CODE, '') or '').strip().upper()
+        if not code:
+            continue
+        cc_raw = state.get(COUNTRY_CODE)
+        cc = (
+            str(cc_raw).strip().upper()
+            if cc_raw is not None and str(cc_raw).strip()
+            else DEFAULT_COUNTRY
+        )
+        key = f'{code},{cc}'
+        doc = dict(state)
+        doc[CODE] = code
+        doc[COUNTRY_CODE] = cc
+        cache[key] = doc
 
 
 def clear_cache():

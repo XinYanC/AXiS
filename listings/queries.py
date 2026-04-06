@@ -129,7 +129,9 @@ def _validate_listing(listing: dict) -> None:
     # Optional status field
     if STATUS in listing and listing[STATUS] is not None:
         if not isinstance(listing[STATUS], str) or not listing[STATUS].strip():
-            raise ValueError("'status' must be a non-empty string if provided.")
+            raise ValueError(
+                "'status' must be a non-empty string if provided."
+            )
 
 
 def _validate_listing_update(update_dict: dict) -> None:

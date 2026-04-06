@@ -49,14 +49,20 @@ def load_cache():
     cache = {}
     cities = dbc.read(CITY_COLLECTION)
     for city in cities:
+        nm = str(city.get(NAME, '') or '').strip()
+        sc = str(city.get(STATE_CODE, '') or '').strip().upper()
+        if not nm or not sc:
+            continue
+        cc_raw = city.get(COUNTRY_CODE)
         cc = (
-            str(city.get(COUNTRY_CODE, '') or '')
-            .strip()
-            .upper()
-            or _DEFAULT_COUNTRY
+            str(cc_raw).strip().upper()
+            if cc_raw is not None and str(cc_raw).strip()
+            else _DEFAULT_COUNTRY
         )
-        key = f'{city[NAME]},{city[STATE_CODE]},{cc}'
+        key = f'{nm},{sc},{cc}'
         doc = dict(city)
+        doc[NAME] = nm
+        doc[STATE_CODE] = sc
         doc[COUNTRY_CODE] = cc
         cache[key] = doc
 
