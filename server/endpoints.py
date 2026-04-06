@@ -182,6 +182,10 @@ listing_model = api.model('Listing', {
         description='Number of likes (optional, default 0)',
         default=0
     ),
+    'status': fields.String(
+        required=False,
+        description='Listing status (e.g., "available", "sold")'
+    ),
 })
 
 login_model = api.model('Login', {

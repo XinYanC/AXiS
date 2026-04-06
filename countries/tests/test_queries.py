@@ -383,7 +383,7 @@ def test_unicode_and_special_characters_in_names():
     test_cases = [
         {'name': 'Côte d\'Ivoire', 'code': 'CI'},
         {'name': 'São Tomé and Príncipe', 'code': 'ST'},
-        {'name': 'España', 'code': 'ES'},
+        {'name': 'España', 'code': 'XE'},
     ]
     
     # Clean up any existing records

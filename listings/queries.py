@@ -11,6 +11,9 @@ MIN_ID_LEN = 1
 
 LISTING_COLLECTION = 'listings'
 
+# Listing status field (default: 'available')
+STATUS = 'status'
+
 ID = 'id'
 TITLE = 'title'
 DESCRIPTION = 'description'
@@ -37,6 +40,7 @@ SAMPLE_LISTING = {
     COUNTRY: 'USA',
     PRICE: 25.00,
     NUM_LIKES: 0,
+    STATUS: 'available',
 }
 
 cache = None
@@ -122,6 +126,10 @@ def _validate_listing(listing: dict) -> None:
                 raise ValueError("'num_likes' must be a non-negative integer.")
         except TypeError:
             raise ValueError("'num_likes' must be a non-negative integer.")
+    # Optional status field
+    if STATUS in listing and listing[STATUS] is not None:
+        if not isinstance(listing[STATUS], str) or not listing[STATUS].strip():
+            raise ValueError("'status' must be a non-empty string if provided.")
 
 
 def _validate_listing_update(update_dict: dict) -> None:
@@ -172,6 +180,7 @@ LISTING_UPDATE_ALLOWED = {
     COUNTRY,
     PRICE,
     NUM_LIKES,
+    STATUS,
 }
 
 
@@ -218,6 +227,9 @@ def num_listings() -> int:
 def create(listing: dict, reload=True) -> str:
     _validate_listing(listing)
     doc = dict(listing)
+    # Ensure status defaults to 'available' if not provided
+    if STATUS not in doc or doc[STATUS] is None:
+        doc[STATUS] = 'available'
     if IMAGES not in doc or doc[IMAGES] is None:
         doc[IMAGES] = []
     if PRICE not in doc:
