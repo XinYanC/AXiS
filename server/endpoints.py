@@ -9,6 +9,7 @@ import data.cloudinary_connect as cloudinarycon
 import listings.queries as listingqry
 import states.queries as stateqry
 import users.queries as userqry
+from functools import wraps
 from server import dropdown_form
 from flask import Flask, request
 from flask_restx import Resource, Api, fields  # Namespace
@@ -24,6 +25,22 @@ CORS(
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 )
 api = Api(app)
+
+
+def handle_endpoint_errors(value_error_status=400):
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            try:
+                return fn(*args, **kwargs)
+            except ValueError as e:
+                return {ERROR: str(e)}, value_error_status
+            except ConnectionError as e:
+                return {ERROR: str(e)}, 500
+            except Exception as e:
+                return {ERROR: str(e)}, 500
+        return wrapper
+    return decorator
 
 ERROR = 'Error'
 MESSAGE = 'Message'
@@ -218,17 +235,13 @@ class CitiesRead(Resource):
     """
     Interact with cities collection
     """
+    @handle_endpoint_errors()
     def get(self):
         """
         Returns all cities in the database.
         """
-        try:
-            cities = cityqry.read()
-            num_recs = len(cities)
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        cities = cityqry.read()
+        num_recs = len(cities)
         return {
             CITY_RESP: cities,
             NUM_RECS: num_recs,
@@ -240,20 +253,16 @@ class CitiesCount(Resource):
     """
     Get count of cities
     """
+    @handle_endpoint_errors()
     def get(self):
         """
         Returns the total number of cities in the database.
         """
-        try:
-            count = cityqry.num_cities()
-            return {
-                'count': count,
-                CITY_RESP: f'Total cities: {count}',
-            }
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        count = cityqry.num_cities()
+        return {
+            'count': count,
+            CITY_RESP: f'Total cities: {count}',
+        }
 
 
 @api.route(f'{CITIES_EPS}/{SEARCH}')
@@ -262,28 +271,22 @@ class CitiesSearch(Resource):
     Search cities by name
     """
     @api.param('q', 'Search term (case-insensitive)', required=True)
+    @handle_endpoint_errors()
     def get(self):
         """
         Search for cities by name (case-insensitive partial match).
         Query param: 'q' (search term)
         """
-        try:
-            search_term = request.args.get('q')
-            if not search_term:
-                return {ERROR: 'Query parameter "q" is required'}, 400
-            cities = cityqry.search_cities_by_name(search_term)
-            num_recs = len(cities)
-            return {
-                CITY_RESP: cities,
-                NUM_RECS: num_recs,
-                'search_term': search_term,
-            }
-        except ValueError as e:
-            return {ERROR: str(e)}, 400
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        search_term = request.args.get('q')
+        if not search_term:
+            return {ERROR: 'Query parameter "q" is required'}, 400
+        cities = cityqry.search_cities_by_name(search_term)
+        num_recs = len(cities)
+        return {
+            CITY_RESP: cities,
+            NUM_RECS: num_recs,
+            'search_term': search_term,
+        }
 
 
 @api.route(f'{CITIES_EPS}/{CREATE}')
@@ -292,29 +295,23 @@ class CitiesCreate(Resource):
     Create a new city
     """
     @api.expect(city_model)
+    @handle_endpoint_errors()
     def post(self):
         """
         Create a new city.
         Required JSON body: name, state_code, latitude, longitude
         """
-        try:
-            city_data = request.json
-            if not city_data:
-                return {ERROR: 'Request body must contain JSON data'}, 400
-            # Store original data before create modifies it
-            original_data = dict(city_data)
-            rec_id = cityqry.create(city_data)
-            return {
-                MESSAGE: 'City created successfully',
-                'id': str(rec_id),
-                'city': original_data,
-            }, 201
-        except ValueError as e:
-            return {ERROR: str(e)}, 400
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        city_data = request.json
+        if not city_data:
+            return {ERROR: 'Request body must contain JSON data'}, 400
+        # Store original data before create modifies it
+        original_data = dict(city_data)
+        rec_id = cityqry.create(city_data)
+        return {
+            MESSAGE: 'City created successfully',
+            'id': str(rec_id),
+            'city': original_data,
+        }, 201
 
 
 @api.route(f'{CITIES_EPS}/{DELETE}')
@@ -324,29 +321,23 @@ class CitiesDelete(Resource):
     """
     @api.param('name', 'City name', required=True)
     @api.param('state_code', 'State code (e.g., "NY", "CA")', required=True)
+    @handle_endpoint_errors(404)
     def delete(self):
         """
         Delete a city by name and state_code.
         Query params: 'name' and 'state_code'
         """
-        try:
-            name = request.args.get('name')
-            state_code = request.args.get('state_code')
-            if not name or not state_code:
-                return {
-                    ERROR: 'Query parameters "name" and '
-                           '"state_code" are required'
-                }, 400
-            cityqry.delete(name, state_code)
+        name = request.args.get('name')
+        state_code = request.args.get('state_code')
+        if not name or not state_code:
             return {
-                MESSAGE: f'City "{name}, {state_code}" deleted successfully',
-            }
-        except ValueError as e:
-            return {ERROR: str(e)}, 404
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+                ERROR: 'Query parameters "name" and '
+                       '"state_code" are required'
+            }, 400
+        cityqry.delete(name, state_code)
+        return {
+            MESSAGE: f'City "{name}, {state_code}" deleted successfully',
+        }
 
 
 # ==================== COUNTRIES ENDPOINTS ====================
@@ -356,17 +347,13 @@ class CountriesRead(Resource):
     """
     Interact with countries collection
     """
+    @handle_endpoint_errors()
     def get(self):
         """
         Returns all countries in the database.
         """
-        try:
-            countries = countryqry.read()
-            num_recs = len(countries)
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        countries = countryqry.read()
+        num_recs = len(countries)
         return {
             COUNTRY_RESP: countries,
             NUM_RECS: num_recs,
@@ -378,20 +365,16 @@ class CountriesCount(Resource):
     """
     Get count of countries
     """
+    @handle_endpoint_errors()
     def get(self):
         """
         Returns the total number of countries in the database.
         """
-        try:
-            count = countryqry.num_countries()
-            return {
-                'count': count,
-                COUNTRY_RESP: f'Total countries: {count}',
-            }
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        count = countryqry.num_countries()
+        return {
+            'count': count,
+            COUNTRY_RESP: f'Total countries: {count}',
+        }
 
 
 @api.route(f'{COUNTRIES_EPS}/{SEARCH}')
@@ -400,28 +383,22 @@ class CountriesSearch(Resource):
     Search countries by name
     """
     @api.param('q', 'Search term (case-insensitive)', required=True)
+    @handle_endpoint_errors()
     def get(self):
         """
         Search for countries by name (case-insensitive partial match).
         Query param: 'q' (search term)
         """
-        try:
-            search_term = request.args.get('q')
-            if not search_term:
-                return {ERROR: 'Query parameter "q" is required'}, 400
-            countries = countryqry.search_countries_by_name(search_term)
-            num_recs = len(countries)
-            return {
-                COUNTRY_RESP: countries,
-                NUM_RECS: num_recs,
-                'search_term': search_term,
-            }
-        except ValueError as e:
-            return {ERROR: str(e)}, 400
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        search_term = request.args.get('q')
+        if not search_term:
+            return {ERROR: 'Query parameter "q" is required'}, 400
+        countries = countryqry.search_countries_by_name(search_term)
+        num_recs = len(countries)
+        return {
+            COUNTRY_RESP: countries,
+            NUM_RECS: num_recs,
+            'search_term': search_term,
+        }
 
 
 @api.route(f'{COUNTRIES_EPS}/{CREATE}')
@@ -430,29 +407,23 @@ class CountriesCreate(Resource):
     Create a new country
     """
     @api.expect(country_model)
+    @handle_endpoint_errors()
     def post(self):
         """
         Create a new country.
         Required JSON body: {"name": "CountryName", "code": "XX"}
         """
-        try:
-            country_data = request.json
-            if not country_data:
-                return {ERROR: 'Request body must contain JSON data'}, 400
-            # Store original data before create modifies it
-            original_data = dict(country_data)
-            rec_id = countryqry.create(country_data)
-            return {
-                MESSAGE: 'Country created successfully',
-                'id': str(rec_id),
-                'country': original_data,
-            }, 201
-        except ValueError as e:
-            return {ERROR: str(e)}, 400
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        country_data = request.json
+        if not country_data:
+            return {ERROR: 'Request body must contain JSON data'}, 400
+        # Store original data before create modifies it
+        original_data = dict(country_data)
+        rec_id = countryqry.create(country_data)
+        return {
+            MESSAGE: 'Country created successfully',
+            'id': str(rec_id),
+            'country': original_data,
+        }, 201
 
 
 @api.route(f'{COUNTRIES_EPS}/{DELETE}')
@@ -462,28 +433,22 @@ class CountriesDelete(Resource):
     """
     @api.param('name', 'Country name', required=True)
     @api.param('code', 'Country code (e.g., "USA", "FRA")', required=True)
+    @handle_endpoint_errors(404)
     def delete(self):
         """
         Delete a country by name and code.
         Query params: 'name' and 'code'
         """
-        try:
-            name = request.args.get('name')
-            code = request.args.get('code')
-            if not name or not code:
-                return {
-                    ERROR: 'Query parameters "name" and "code" are required'
-                }, 400
-            countryqry.delete(name, code)
+        name = request.args.get('name')
+        code = request.args.get('code')
+        if not name or not code:
             return {
-                MESSAGE: f'Country "{name}, {code}" deleted successfully',
-            }
-        except ValueError as e:
-            return {ERROR: str(e)}, 404
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+                ERROR: 'Query parameters "name" and "code" are required'
+            }, 400
+        countryqry.delete(name, code)
+        return {
+            MESSAGE: f'Country "{name}, {code}" deleted successfully',
+        }
 
 
 # ==================== STATES ENDPOINTS ====================
@@ -493,17 +458,13 @@ class StatesRead(Resource):
     """
     Interact with states collection
     """
+    @handle_endpoint_errors()
     def get(self):
         """
         Returns all states in the database.
         """
-        try:
-            states = stateqry.read()
-            num_recs = len(states)
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        states = stateqry.read()
+        num_recs = len(states)
         return {
             STATE_RESP: states,
             NUM_RECS: num_recs,
@@ -515,20 +476,16 @@ class StatesCount(Resource):
     """
     Get count of states
     """
+    @handle_endpoint_errors()
     def get(self):
         """
         Returns the total number of states in the database.
         """
-        try:
-            count = stateqry.num_states()
-            return {
-                'count': count,
-                STATE_RESP: f'Total states: {count}',
-            }
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        count = stateqry.num_states()
+        return {
+            'count': count,
+            STATE_RESP: f'Total states: {count}',
+        }
 
 
 @api.route(f'{STATES_EPS}/{SEARCH}')
@@ -537,28 +494,22 @@ class StatesSearch(Resource):
     Search states by name
     """
     @api.param('q', 'Search term (case-insensitive)', required=True)
+    @handle_endpoint_errors()
     def get(self):
         """
         Search for states by name (case-insensitive partial match).
         Query param: 'q' (search term)
         """
-        try:
-            search_term = request.args.get('q')
-            if not search_term:
-                return {ERROR: 'Query parameter "q" is required'}, 400
-            states = stateqry.search_states_by_name(search_term)
-            num_recs = len(states)
-            return {
-                STATE_RESP: states,
-                NUM_RECS: num_recs,
-                'search_term': search_term,
-            }
-        except ValueError as e:
-            return {ERROR: str(e)}, 400
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        search_term = request.args.get('q')
+        if not search_term:
+            return {ERROR: 'Query parameter "q" is required'}, 400
+        states = stateqry.search_states_by_name(search_term)
+        num_recs = len(states)
+        return {
+            STATE_RESP: states,
+            NUM_RECS: num_recs,
+            'search_term': search_term,
+        }
 
 
 @api.route(f'{STATES_EPS}/{CREATE}')
@@ -567,30 +518,24 @@ class StatesCreate(Resource):
     Create a new state
     """
     @api.expect(state_model)
+    @handle_endpoint_errors()
     def post(self):
         """
         Create a new state.
         Required JSON body:
         {"name": "StateName", "code": "XX", "country_code": "YYY"}
         """
-        try:
-            state_data = request.json
-            if not state_data:
-                return {ERROR: 'Request body must contain JSON data'}, 400
-            # Store original data before create modifies it
-            original_data = dict(state_data)
-            rec_id = stateqry.create(state_data)
-            return {
-                MESSAGE: 'State created successfully',
-                'id': str(rec_id),
-                'state': original_data,
-            }, 201
-        except ValueError as e:
-            return {ERROR: str(e)}, 400
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        state_data = request.json
+        if not state_data:
+            return {ERROR: 'Request body must contain JSON data'}, 400
+        # Store original data before create modifies it
+        original_data = dict(state_data)
+        rec_id = stateqry.create(state_data)
+        return {
+            MESSAGE: 'State created successfully',
+            'id': str(rec_id),
+            'state': original_data,
+        }, 201
 
 
 @api.route(f'{STATES_EPS}/{DELETE}')
@@ -600,30 +545,24 @@ class StatesDelete(Resource):
     """
     @api.param('code', 'State code (e.g., "NY", "CA")', required=True)
     @api.param('country_code', 'Country code (e.g., "USA")', required=True)
+    @handle_endpoint_errors(404)
     def delete(self):
         """
         Delete a state by code and country_code.
         Query params: 'code' and 'country_code'
         """
-        try:
-            code = request.args.get('code')
-            country_code = request.args.get('country_code')
-            if not code or not country_code:
-                return {
-                    ERROR: 'Query parameters "code" and '
-                           '"country_code" are required'
-                }, 400
-            stateqry.delete(code, country_code)
+        code = request.args.get('code')
+        country_code = request.args.get('country_code')
+        if not code or not country_code:
             return {
-                MESSAGE: f'State "{code}, {country_code}" deleted '
-                         f'successfully',
-            }
-        except ValueError as e:
-            return {ERROR: str(e)}, 404
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+                ERROR: 'Query parameters "code" and '
+                       '"country_code" are required'
+            }, 400
+        stateqry.delete(code, country_code)
+        return {
+            MESSAGE: f'State "{code}, {country_code}" deleted '
+                     f'successfully',
+        }
 
 
 # ==================== USERS ENDPOINTS ====================
@@ -633,17 +572,13 @@ class UsersRead(Resource):
     """
     Interact with users collection
     """
+    @handle_endpoint_errors()
     def get(self):
         """
         Returns all users in the database.
         """
-        try:
-            users = userqry.read()
-            num_recs = len(users)
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        users = userqry.read()
+        num_recs = len(users)
         return {
             USER_RESP: users,
             NUM_RECS: num_recs,
@@ -655,20 +590,16 @@ class UsersCount(Resource):
     """
     Get count of users
     """
+    @handle_endpoint_errors()
     def get(self):
         """
         Returns the total number of users in the database.
         """
-        try:
-            count = userqry.num_users()
-            return {
-                'count': count,
-                USER_RESP: f'Total users: {count}',
-            }
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        count = userqry.num_users()
+        return {
+            'count': count,
+            USER_RESP: f'Total users: {count}',
+        }
 
 
 @api.route(f'{USERS_EPS}/{SEARCH}')
@@ -677,28 +608,22 @@ class UsersSearch(Resource):
     Search users by name or username
     """
     @api.param('q', 'Search term (case-insensitive)', required=True)
+    @handle_endpoint_errors()
     def get(self):
         """
         Search for users by name or username (case-insensitive partial match).
         Query param: 'q' (search term)
         """
-        try:
-            search_term = request.args.get('q')
-            if not search_term:
-                return {ERROR: 'Query parameter "q" is required'}, 400
-            users = userqry.search_users_by_name(search_term)
-            num_recs = len(users)
-            return {
-                USER_RESP: users,
-                NUM_RECS: num_recs,
-                'search_term': search_term,
-            }
-        except ValueError as e:
-            return {ERROR: str(e)}, 400
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        search_term = request.args.get('q')
+        if not search_term:
+            return {ERROR: 'Query parameter "q" is required'}, 400
+        users = userqry.search_users_by_name(search_term)
+        num_recs = len(users)
+        return {
+            USER_RESP: users,
+            NUM_RECS: num_recs,
+            'search_term': search_term,
+        }
 
 
 @api.route(f'{USERS_EPS}/{CREATE}')
@@ -707,6 +632,7 @@ class UsersCreate(Resource):
     Create a new user
     """
     @api.expect(user_model)
+    @handle_endpoint_errors()
     def post(self):
         """
         Create a new user.
@@ -726,27 +652,20 @@ class UsersCreate(Resource):
         Note: password will be hashed, email must end in .edu.
         Note: created_at is generated by the server; do not send it.
         """
-        try:
-            user_data = request.json
-            if not user_data:
-                return {ERROR: 'Request body must contain JSON data'}, 400
-            # Store original data before create modifies it
-            original_data = dict(user_data)
-            # Don't return password in response
-            if 'password' in original_data:
-                original_data['password'] = '[REDACTED]'
-            rec_id = userqry.create(user_data)
-            return {
-                MESSAGE: 'User created successfully',
-                'id': str(rec_id),
-                'user': original_data,
-            }, 201
-        except ValueError as e:
-            return {ERROR: str(e)}, 400
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        user_data = request.json
+        if not user_data:
+            return {ERROR: 'Request body must contain JSON data'}, 400
+        # Store original data before create modifies it
+        original_data = dict(user_data)
+        # Don't return password in response
+        if 'password' in original_data:
+            original_data['password'] = '[REDACTED]'
+        rec_id = userqry.create(user_data)
+        return {
+            MESSAGE: 'User created successfully',
+            'id': str(rec_id),
+            'user': original_data,
+        }, 201
 
 
 @api.route(f'{USERS_EPS}/{UPDATE}')
@@ -756,6 +675,7 @@ class UsersUpdate(Resource):
     """
     @api.param('username', 'Username or MongoDB ObjectId', required=True)
     @api.expect(user_model)
+    @handle_endpoint_errors()
     def put(self):
         """
         Update a user by username or ObjectId.
@@ -763,23 +683,16 @@ class UsersUpdate(Resource):
         is_verified, city, state, country, rating, saved_listings,
         password (hashed).
         """
-        try:
-            username_or_id = request.args.get('username')
-            if not username_or_id:
-                return {
-                    ERROR: 'Query parameter "username" is required'
-                }, 400
-            body = request.json
-            if not body:
-                return {ERROR: 'Request body must contain JSON data'}, 400
-            updated = userqry.update(username_or_id, body)
-            return {USER_RESP: updated, MESSAGE: 'User updated successfully'}
-        except ValueError as e:
-            return {ERROR: str(e)}, 400
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        username_or_id = request.args.get('username')
+        if not username_or_id:
+            return {
+                ERROR: 'Query parameter "username" is required'
+            }, 400
+        body = request.json
+        if not body:
+            return {ERROR: 'Request body must contain JSON data'}, 400
+        updated = userqry.update(username_or_id, body)
+        return {USER_RESP: updated, MESSAGE: 'User updated successfully'}
 
 
 @api.route(f'{USERS_EPS}/{DELETE}')
@@ -788,27 +701,21 @@ class UsersDelete(Resource):
     Delete a user
     """
     @api.param('username', 'Username or MongoDB ObjectId', required=True)
+    @handle_endpoint_errors(404)
     def delete(self):
         """
         Delete a user by username or MongoDB ObjectId.
         Query param: 'username' (username string or ObjectId)
         """
-        try:
-            username_or_id = request.args.get('username')
-            if not username_or_id:
-                return {
-                    ERROR: 'Query parameter "username" is required'
-                }, 400
-            userqry.delete(username_or_id)
+        username_or_id = request.args.get('username')
+        if not username_or_id:
             return {
-                MESSAGE: f'User "{username_or_id}" deleted successfully',
-            }
-        except ValueError as e:
-            return {ERROR: str(e)}, 404
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+                ERROR: 'Query parameter "username" is required'
+            }, 400
+        userqry.delete(username_or_id)
+        return {
+            MESSAGE: f'User "{username_or_id}" deleted successfully',
+        }
 
 
 # ==================== LISTINGS ENDPOINTS ====================
@@ -818,17 +725,13 @@ class ListingsRead(Resource):
     """
     Interact with listings collection
     """
+    @handle_endpoint_errors()
     def get(self):
         """
         Returns all listings in the database.
         """
-        try:
-            listings = listingqry.read()
-            num_recs = len(listings)
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        listings = listingqry.read()
+        num_recs = len(listings)
         return {
             LISTING_RESP: listings,
             NUM_RECS: num_recs,
@@ -840,20 +743,16 @@ class ListingsCount(Resource):
     """
     Get count of listings
     """
+    @handle_endpoint_errors()
     def get(self):
         """
         Returns the total number of listings in the database.
         """
-        try:
-            count = listingqry.num_listings()
-            return {
-                'count': count,
-                LISTING_RESP: f'Total listings: {count}',
-            }
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        count = listingqry.num_listings()
+        return {
+            'count': count,
+            LISTING_RESP: f'Total listings: {count}',
+        }
 
 
 @api.route(f'{LISTINGS_EPS}/{SEARCH}')
@@ -862,28 +761,22 @@ class ListingsSearch(Resource):
     Search listings by title
     """
     @api.param('q', 'Search term (case-insensitive)', required=True)
+    @handle_endpoint_errors()
     def get(self):
         """
         Search for listings by title (case-insensitive partial match).
         Query param: 'q' (search term)
         """
-        try:
-            search_term = request.args.get('q')
-            if not search_term:
-                return {ERROR: 'Query parameter "q" is required'}, 400
-            listings = listingqry.search_listings_by_title(search_term)
-            num_recs = len(listings)
-            return {
-                LISTING_RESP: listings,
-                NUM_RECS: num_recs,
-                'search_term': search_term,
-            }
-        except ValueError as e:
-            return {ERROR: str(e)}, 400
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        search_term = request.args.get('q')
+        if not search_term:
+            return {ERROR: 'Query parameter "q" is required'}, 400
+        listings = listingqry.search_listings_by_title(search_term)
+        num_recs = len(listings)
+        return {
+            LISTING_RESP: listings,
+            NUM_RECS: num_recs,
+            'search_term': search_term,
+        }
 
 
 @api.route(f'{LISTINGS_EPS}/{BY_USER}')
@@ -892,28 +785,22 @@ class ListingsByUser(Resource):
     Get listings by owner username
     """
     @api.param('username', 'Listing owner username', required=True)
+    @handle_endpoint_errors()
     def get(self):
         """
         Return all listings for a given owner username.
         Query param: 'username'
         """
-        try:
-            username = request.args.get('username')
-            if not username:
-                return {ERROR: 'Query parameter "username" is required'}, 400
-            listings = listingqry.search_listings_by_owner(username)
-            num_recs = len(listings)
-            return {
-                LISTING_RESP: listings,
-                NUM_RECS: num_recs,
-                'username': username,
-            }
-        except ValueError as e:
-            return {ERROR: str(e)}, 400
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        username = request.args.get('username')
+        if not username:
+            return {ERROR: 'Query parameter "username" is required'}, 400
+        listings = listingqry.search_listings_by_owner(username)
+        num_recs = len(listings)
+        return {
+            LISTING_RESP: listings,
+            NUM_RECS: num_recs,
+            'username': username,
+        }
 
 
 @api.route(f'{LISTINGS_EPS}/{UPLOAD_IMAGE}')
@@ -923,6 +810,7 @@ class ListingsUploadImage(Resource):
     """
     @api.expect(upload_image_parser)
     @api.doc(consumes=['multipart/form-data'])
+    @handle_endpoint_errors()
     def post(self):
         """
         Upload a single image file to Cloudinary and receive its URL.
@@ -930,18 +818,13 @@ class ListingsUploadImage(Resource):
         Returns the Cloudinary HTTPS URL to include in the listing's
         'images' array when calling POST /listings/create.
         """
-        try:
-            if 'image' not in request.files:
-                return {ERROR: 'No image file provided (field: "image")'}, 400
-            file = request.files['image']
-            if file.filename == '':
-                return {ERROR: 'No image file selected'}, 400
-            url = cloudinarycon.upload_image(file)
-            return {'url': url}, 200
-        except ValueError as e:
-            return {ERROR: str(e)}, 400
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        if 'image' not in request.files:
+            return {ERROR: 'No image file provided (field: "image")'}, 400
+        file = request.files['image']
+        if file.filename == '':
+            return {ERROR: 'No image file selected'}, 400
+        url = cloudinarycon.upload_image(file)
+        return {'url': url}, 200
 
 
 @api.route(f'{LISTINGS_EPS}/{CREATE}')
@@ -950,29 +833,23 @@ class ListingsCreate(Resource):
     Create a new listing
     """
     @api.expect(listing_model)
+    @handle_endpoint_errors()
     def post(self):
         """
         Create a new listing.
         Required JSON body: title, description, transaction_type, owner,
         city, state, country. Optional: images (list), price (number).
         """
-        try:
-            listing_data = request.json
-            if not listing_data:
-                return {ERROR: 'Request body must contain JSON data'}, 400
-            original_data = dict(listing_data)
-            rec_id = listingqry.create(listing_data)
-            return {
-                MESSAGE: 'Listing created successfully',
-                'id': str(rec_id),
-                'listing': original_data,
-            }, 201
-        except ValueError as e:
-            return {ERROR: str(e)}, 400
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        listing_data = request.json
+        if not listing_data:
+            return {ERROR: 'Request body must contain JSON data'}, 400
+        original_data = dict(listing_data)
+        rec_id = listingqry.create(listing_data)
+        return {
+            MESSAGE: 'Listing created successfully',
+            'id': str(rec_id),
+            'listing': original_data,
+        }, 201
 
 
 @api.route(f'{LISTINGS_EPS}/{UPDATE}')
@@ -982,30 +859,24 @@ class ListingsUpdate(Resource):
     """
     @api.param('id', 'Listing MongoDB _id', required=True)
     @api.expect(listing_model)
+    @handle_endpoint_errors()
     def put(self):
         """
         Update a listing by its ID.
         Query param: 'id'. Body: any subset of title, description,
         transaction_type, city, state, country, price, num_likes.
         """
-        try:
-            listing_id = request.args.get('id')
-            if not listing_id:
-                return {ERROR: 'Query parameter "id" is required'}, 400
-            body = request.json
-            if not body:
-                return {ERROR: 'Request body must contain JSON data'}, 400
-            updated = listingqry.update(listing_id, body)
-            return {
-                LISTING_RESP: updated,
-                MESSAGE: 'Listing updated successfully',
-            }
-        except ValueError as e:
-            return {ERROR: str(e)}, 400
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        listing_id = request.args.get('id')
+        if not listing_id:
+            return {ERROR: 'Query parameter "id" is required'}, 400
+        body = request.json
+        if not body:
+            return {ERROR: 'Request body must contain JSON data'}, 400
+        updated = listingqry.update(listing_id, body)
+        return {
+            LISTING_RESP: updated,
+            MESSAGE: 'Listing updated successfully',
+        }
 
 
 @api.route(f'{LISTINGS_EPS}/{DELETE}')
@@ -1014,25 +885,19 @@ class ListingsDelete(Resource):
     Delete a listing
     """
     @api.param('id', 'Listing MongoDB _id', required=True)
+    @handle_endpoint_errors(404)
     def delete(self):
         """
         Delete a listing by its ID.
         Query param: 'id' (MongoDB _id)
         """
-        try:
-            listing_id = request.args.get('id')
-            if not listing_id:
-                return {ERROR: 'Query parameter "id" is required'}, 400
-            listingqry.delete(listing_id)
-            return {
-                MESSAGE: f'Listing "{listing_id}" deleted successfully',
-            }
-        except ValueError as e:
-            return {ERROR: str(e)}, 404
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        listing_id = request.args.get('id')
+        if not listing_id:
+            return {ERROR: 'Query parameter "id" is required'}, 400
+        listingqry.delete(listing_id)
+        return {
+            MESSAGE: f'Listing "{listing_id}" deleted successfully',
+        }
 
 
 # ==================== AUTH ENDPOINTS ====================
@@ -1043,30 +908,26 @@ class AuthLogin(Resource):
     Authenticate user by email and password.
     """
     @api.expect(login_model)
+    @handle_endpoint_errors()
     def post(self):
         """
         Login with email and password.
         Request body: {"email": "user@example.edu", "password": "plaintext"}
         Returns user object (without password) on success, 401 on failure.
         """
-        try:
-            data = request.json
-            if not data:
-                return {ERROR: 'Request body must contain JSON'}, 400
-            email = data.get('email')
-            password = data.get('password')
-            if not email:
-                return {ERROR: 'Email is required'}, 400
-            if not password:
-                return {ERROR: 'Password is required'}, 400
-            user = userqry.authenticate(email, password)
-            if not user:
-                return {ERROR: 'Invalid email or password'}, 401
-            return {USER_RESP: user, MESSAGE: 'Login successful'}, 200
-        except ConnectionError as e:
-            return {ERROR: str(e)}, 500
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+        data = request.json
+        if not data:
+            return {ERROR: 'Request body must contain JSON'}, 400
+        email = data.get('email')
+        password = data.get('password')
+        if not email:
+            return {ERROR: 'Email is required'}, 400
+        if not password:
+            return {ERROR: 'Password is required'}, 400
+        user = userqry.authenticate(email, password)
+        if not user:
+            return {ERROR: 'Invalid email or password'}, 401
+        return {USER_RESP: user, MESSAGE: 'Login successful'}, 200
 
 
 # ==================== SYSTEM / HATEOAS DROPDOWN ENDPOINTS ====================
@@ -1113,23 +974,21 @@ class SystemDropdownForm(Resource):
     Machine-readable form description for dropdown fields (Swagger + clients).
     """
 
+    @handle_endpoint_errors()
     def get(self):
-        try:
-            return {
-                'form': dropdown_form.get_form(),
-                'form_descr': dropdown_form.get_form_descr(),
-                'fld_names': dropdown_form.get_fld_names(),
-                '_links': {
-                    'self': {
-                        'href': f'{SYSTEM_EPS}/{SYSTEM_DROPDOWN_FORM}',
-                    },
-                    'options': {
-                        'href': f'{SYSTEM_EPS}/{SYSTEM_DROPDOWN_OPTIONS}',
-                    },
+        return {
+            'form': dropdown_form.get_form(),
+            'form_descr': dropdown_form.get_form_descr(),
+            'fld_names': dropdown_form.get_fld_names(),
+            '_links': {
+                'self': {
+                    'href': f'{SYSTEM_EPS}/{SYSTEM_DROPDOWN_FORM}',
                 },
-            }, 200
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+                'options': {
+                    'href': f'{SYSTEM_EPS}/{SYSTEM_DROPDOWN_OPTIONS}',
+                },
+            },
+        }, 200
 
 
 @api.route(f'{SYSTEM_EPS}/{SYSTEM_DROPDOWN_OPTIONS}')
@@ -1144,106 +1003,104 @@ class SystemDropdownOptions(Resource):
 
     @api.param('country_code', 'Filter states by country code', required=False)
     @api.param('state_code', 'Filter cities by state code', required=False)
+    @handle_endpoint_errors()
     def get(self):
-        try:
-            country_code = request.args.get('country_code')
-            state_code = request.args.get('state_code')
+        country_code = request.args.get('country_code')
+        state_code = request.args.get('state_code')
 
-            if state_code:
-                cities_raw = cityqry.read()
-                cities = (
-                    cities_raw.values()
-                    if isinstance(cities_raw, dict)
-                    else cities_raw
-                )
-                req_cc = (
-                    str(country_code).strip().upper()
-                    if country_code and str(country_code).strip()
-                    else None
-                )
-                options = []
-                for c in cities:
-                    sc = c.get('state_code', '')
-                    if str(sc).upper() != str(state_code).upper():
-                        continue
-                    city_cc = str(
-                        c.get('country_code', '') or 'USA'
-                    ).strip().upper() or 'USA'
-                    if req_cc:
-                        if city_cc != req_cc:
-                            continue
-                    else:
-                        if city_cc != 'USA':
-                            continue
-                    name = c.get('name', '')
-                    options.append(
-                        _option(
-                            name,
-                            f'{name}, {sc}',
-                        )
-                    )
-                options.sort(key=lambda o: o['label'].lower())
-                cc_echo = req_cc if req_cc else 'USA'
-                return {
-                    'kind': 'cities',
-                    'state_code': state_code,
-                    'country_code': cc_echo,
-                    'options': options,
-                    NUM_RECS: len(options),
-                    '_links': _dropdown_links(
-                        country_code=cc_echo,
-                        state_code=state_code,
-                    ),
-                }, 200
-
-            if country_code:
-                states_raw = stateqry.read()
-                states = (
-                    states_raw.values()
-                    if isinstance(states_raw, dict)
-                    else states_raw
-                )
-                options = []
-                for s in states:
-                    cc = s.get('country_code', '')
-                    if str(cc).upper() != str(country_code).upper():
-                        continue
-                    code = s.get('code', '')
-                    name = s.get('name', code)
-                    options.append(_option(code, f'{name} ({code})'))
-                options.sort(key=lambda o: o['label'].lower())
-                return {
-                    'kind': 'states',
-                    'country_code': country_code,
-                    'options': options,
-                    NUM_RECS: len(options),
-                    '_links': _dropdown_links(
-                        country_code=country_code,
-                        state_code=state_code,
-                    ),
-                }, 200
-
-            # countries by default
-            countries_raw = countryqry.read()
-            countries = (
-                countries_raw.values()
-                if isinstance(countries_raw, dict)
-                else countries_raw
+        if state_code:
+            cities_raw = cityqry.read()
+            cities = (
+                cities_raw.values()
+                if isinstance(cities_raw, dict)
+                else cities_raw
+            )
+            req_cc = (
+                str(country_code).strip().upper()
+                if country_code and str(country_code).strip()
+                else None
             )
             options = []
-            for c in countries:
-                code = c.get('code', '')
-                name = c.get('name', code)
+            for c in cities:
+                sc = c.get('state_code', '')
+                if str(sc).upper() != str(state_code).upper():
+                    continue
+                city_cc = str(
+                    c.get('country_code', '') or 'USA'
+                ).strip().upper() or 'USA'
+                if req_cc:
+                    if city_cc != req_cc:
+                        continue
+                else:
+                    if city_cc != 'USA':
+                        continue
+                name = c.get('name', '')
+                options.append(
+                    _option(
+                        name,
+                        f'{name}, {sc}',
+                    )
+                )
+            options.sort(key=lambda o: o['label'].lower())
+            cc_echo = req_cc if req_cc else 'USA'
+            return {
+                'kind': 'cities',
+                'state_code': state_code,
+                'country_code': cc_echo,
+                'options': options,
+                NUM_RECS: len(options),
+                '_links': _dropdown_links(
+                    country_code=cc_echo,
+                    state_code=state_code,
+                ),
+            }, 200
+
+        if country_code:
+            states_raw = stateqry.read()
+            states = (
+                states_raw.values()
+                if isinstance(states_raw, dict)
+                else states_raw
+            )
+            options = []
+            for s in states:
+                cc = s.get('country_code', '')
+                if str(cc).upper() != str(country_code).upper():
+                    continue
+                code = s.get('code', '')
+                name = s.get('name', code)
                 options.append(_option(code, f'{name} ({code})'))
             options.sort(key=lambda o: o['label'].lower())
             return {
-                'kind': 'countries',
+                'kind': 'states',
+                'country_code': country_code,
                 'options': options,
                 NUM_RECS: len(options),
-                '_links': _dropdown_links(),
+                '_links': _dropdown_links(
+                    country_code=country_code,
+                    state_code=state_code,
+                ),
             }, 200
-        except Exception as e:
-            return {ERROR: str(e)}, 500
+
+        # countries by default
+        countries_raw = countryqry.read()
+        countries = (
+            countries_raw.values()
+            if isinstance(countries_raw, dict)
+            else countries_raw
+        )
+        options = []
+        for c in countries:
+            code = c.get('code', '')
+            name = c.get('name', code)
+            options.append(_option(code, f'{name} ({code})'))
+        options.sort(key=lambda o: o['label'].lower())
+        return {
+            'kind': 'countries',
+            'options': options,
+            NUM_RECS: len(options),
+            '_links': _dropdown_links(),
+        }, 200
 
 
 # ==================== UTILITY ENDPOINTS ====================
