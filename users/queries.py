@@ -24,6 +24,7 @@ EMAIL = 'email'  # must end in .edu
 CITY = 'city'
 STATE = 'state'
 COUNTRY = 'country'
+RATING = 'rating'
 CREATED_AT = 'created_at'
 UPDATED_AT = 'updated_at'
 SAVED_LISTINGS = 'saved_listings'  # list of listing IDs the user has liked
@@ -39,6 +40,7 @@ SAMPLE_USER = {
     CITY: 'New York',
     STATE: 'NY',
     COUNTRY: 'USA',
+    RATING: 5.0,
     SAVED_LISTINGS: [],
 }
 SAMPLE_KEY = SAMPLE_USER[USERNAME]
@@ -71,6 +73,18 @@ def clear_cache():
     cache = None
 
 
+def _normalize_rating(value):
+    if value is None or value == '':
+        return None
+    try:
+        rating = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("'rating' must be a number.") from exc
+    if rating < 0 or rating > 5:
+        raise ValueError("'rating' must be between 0 and 5.")
+    return rating
+
+
 @needs_cache
 def num_users() -> int:
     return len(cache)
@@ -92,6 +106,8 @@ def create(user, reload=True):
     for fld in (CITY, STATE, COUNTRY):
         if fld not in user or not str(user.get(fld) or '').strip():
             raise ValueError(f"User must have a non-empty '{fld}'.")
+    if RATING in user:
+        user[RATING] = _normalize_rating(user[RATING])
     if PASSWORD in user and user[PASSWORD]:
         password_bytes = user[PASSWORD].encode('utf-8')
         hashed = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
@@ -135,7 +151,8 @@ def delete(username_or_id: str) -> bool:
 
 
 USER_UPDATE_ALLOWED = {
-    NAME, AGE, BIO, IS_VERIFIED, CITY, STATE, COUNTRY, SAVED_LISTINGS, PASSWORD
+    NAME, AGE, BIO, IS_VERIFIED, CITY, STATE, COUNTRY, RATING,
+    SAVED_LISTINGS, PASSWORD
 }
 
 
@@ -144,7 +161,7 @@ def update(username_or_id: str, update_dict: dict) -> dict:
     """
     Update a user by username or MongoDB ObjectId.
     Allowed fields: name, age, bio, is_verified, city, state, country,
-    saved_listings, password (will be hashed).
+    rating, saved_listings, password (will be hashed).
     Username and email cannot be changed.
     Returns the updated user from cache (without password).
     """
@@ -156,7 +173,7 @@ def update(username_or_id: str, update_dict: dict) -> dict:
     if not allowed:
         raise ValueError(
             "Update must contain at least one allowed field: "
-            "name, age, bio, is_verified, email, city, state, country, "
+            "name, age, bio, is_verified, city, state, country, rating, "
             "saved_listings, password."
         )
     if USERNAME in update_dict:
@@ -164,6 +181,8 @@ def update(username_or_id: str, update_dict: dict) -> dict:
     if SAVED_LISTINGS in allowed and allowed[SAVED_LISTINGS] is not None:
         if not isinstance(allowed[SAVED_LISTINGS], list):
             raise ValueError("'saved_listings' must be a list.")
+    if RATING in allowed:
+        allowed[RATING] = _normalize_rating(allowed[RATING])
     for fld in (CITY, STATE, COUNTRY):
         if fld in allowed and (
             allowed[fld] is None or not str(allowed[fld]).strip()
