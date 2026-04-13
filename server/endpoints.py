@@ -42,6 +42,7 @@ def handle_endpoint_errors(value_error_status=400):
         return wrapper
     return decorator
 
+
 ERROR = 'Error'
 MESSAGE = 'Message'
 NUM_RECS = 'Number of Records'
