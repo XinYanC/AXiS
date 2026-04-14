@@ -1,11 +1,11 @@
-title	description	images	transaction_type	owner	city	state	country	price	num_likes
-Textbook - Intro to CS	Like new, barely used.	https://res.cloudinary.com/dbdwz0iqy/image/upload/v1774765271/61-Q2D6WrjL._AC_UF1000_1000_QL80__qjz6xz.jpg	sell	mrivera	New York	NY	USA	25.00	0
-Desk Lamp	LED lamp with adjustable brightness.	https://res.cloudinary.com/dbdwz0iqy/image/upload/v1774765271/61Ckk6bdzwL_y5svtm.jpg	sell	tnguyen	New York	NY	USA	15.00	2
-Winter Jacket	Warm and in great condition.	https://res.cloudinary.com/dbdwz0iqy/image/upload/q_auto/f_auto/v1774765272/m87938859974_1_z441iz.webp	sell	dcohen	Ithaca	NY	USA	40.00	5
-Free Notebooks	Set of 3 unused notebooks.	https://res.cloudinary.com/dbdwz0iqy/image/upload/q_auto/f_auto/v1774765271/3_700x_jfjeqe.webp	free	ahassan	Stony Brook	NY	USA		1
-Mini Fridge	Works perfectly, great for dorm rooms.	https://res.cloudinary.com/dbdwz0iqy/image/upload/q_auto/f_auto/v1774765272/Fridge03_blglzo.webp	sell	jmartinez	New York	NY	USA	60.00	3
-Bike Lock	Strong U-lock, lightly used.	https://res.cloudinary.com/dbdwz0iqy/image/upload/q_auto/f_auto/v1774765271/bikelock-2048px-3262_vuoxyb.webp	sell	lpetrov	New York	NY	USA	10.00	4
-Calculator - TI-84	Required for many math classes.	https://res.cloudinary.com/dbdwz0iqy/image/upload/q_auto/f_auto/v1774765272/s-l1200_cu3w6l.jpg	sell	sroberts	New York	NY	USA	45.00	6
-Dorm Chair	Comfortable rolling chair.	https://res.cloudinary.com/dbdwz0iqy/image/upload/q_auto/f_auto/v1774765271/1_7Y4IiQOCX2QoeYA09nztjg_xno4c1.jpg	sell	ypark	Brooklyn	NY	USA	20.00	1
-Monitor 24 inch	Full HD monitor, includes HDMI cable.	https://res.cloudinary.com/dbdwz0iqy/image/upload/q_auto/f_auto/v1774765272/s-l1200_1_x44b1h.jpg	sell	ewright	Brooklyn	NY	USA	80.00	7
-Water Bottle	Reusable stainless steel bottle.	https://res.cloudinary.com/dbdwz0iqy/image/upload/q_auto/f_auto/v1774765273/sbblack__03451_ou82km.jpg	sell	ksharma	Rochester	NY	USA	8.00	0
+title	description	images	transaction_type	owner	city	state	country	price	num_likes	status
+Textbook - Intro to CS	Like new, barely used.	https://res.cloudinary.com/dbdwz0iqy/image/upload/v1774765271/61-Q2D6WrjL._AC_UF1000_1000_QL80__qjz6xz.jpg	sell	mrivera	New York	NY	USA	25.00	0	available
+Desk Lamp	LED lamp with adjustable brightness.	https://res.cloudinary.com/dbdwz0iqy/image/upload/v1774765271/61Ckk6bdzwL_y5svtm.jpg	sell	tnguyen	New York	NY	USA	15.00	2	available
+Winter Jacket	Warm and in great condition.	https://res.cloudinary.com/dbdwz0iqy/image/upload/q_auto/f_auto/v1774765272/m87938859974_1_z441iz.webp	sell	dcohen	Ithaca	NY	USA	40.00	5	sold
+Free Notebooks	Set of 3 unused notebooks.	https://res.cloudinary.com/dbdwz0iqy/image/upload/q_auto/f_auto/v1774765271/3_700x_jfjeqe.webp	free	ahassan	Stony Brook	NY	USA		1	available
+Mini Fridge	Works perfectly, great for dorm rooms.	https://res.cloudinary.com/dbdwz0iqy/image/upload/q_auto/f_auto/v1774765272/Fridge03_blglzo.webp	sell	jmartinez	New York	NY	USA	60.00	3	available
+Bike Lock	Strong U-lock, lightly used.	https://res.cloudinary.com/dbdwz0iqy/image/upload/q_auto/f_auto/v1774765271/bikelock-2048px-3262_vuoxyb.webp	sell	lpetrov	New York	NY	USA	10.00	4	available
+Calculator - TI-84	Required for many math classes.	https://res.cloudinary.com/dbdwz0iqy/image/upload/q_auto/f_auto/v1774765272/s-l1200_cu3w6l.jpg	sell	sroberts	New York	NY	USA	45.00	6	available
+Dorm Chair	Comfortable rolling chair.	https://res.cloudinary.com/dbdwz0iqy/image/upload/q_auto/f_auto/v1774765271/1_7Y4IiQOCX2QoeYA09nztjg_xno4c1.jpg	sell	ypark	Brooklyn	NY	USA	20.00	1	available
+Monitor 24 inch	Full HD monitor, includes HDMI cable.	https://res.cloudinary.com/dbdwz0iqy/image/upload/q_auto/f_auto/v1774765272/s-l1200_1_x44b1h.jpg	sell	ewright	Brooklyn	NY	USA	80.00	7	available
+Water Bottle	Reusable stainless steel bottle.	https://res.cloudinary.com/dbdwz0iqy/image/upload/q_auto/f_auto/v1774765273/sbblack__03451_ou82km.jpg	sell	ksharma	Rochester	NY	USA	8.00	0	available

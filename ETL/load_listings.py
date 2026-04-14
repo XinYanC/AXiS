@@ -19,6 +19,7 @@ from listings.queries import (
     COUNTRY,
     PRICE,
     NUM_LIKES,
+    STATUS,
     create,
 )
 
@@ -39,6 +40,7 @@ _FIELD_BY_HEADER = {
     'price': PRICE,
     'num_likes': NUM_LIKES,
     'images': IMAGES,
+    'status': STATUS,
 }
 
 _REQUIRED_HEADERS = {'title', 'description', 'transaction_type', 'owner',
@@ -134,7 +136,7 @@ def main():
         print('USAGE: load_listings.py <tsvfile>')
         print('  Required columns: title, description, transaction_type,')
         print('    owner, city, state, country')
-        print('  Optional: price, num_likes, images')
+        print('  Optional: price, num_likes, images, status')
         sys.exit(1)
 
     listing_list = extract(sys.argv[1])
