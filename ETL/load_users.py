@@ -13,7 +13,6 @@ from users.queries import (
     NAME,
     USERNAME,
     PASSWORD,
-    RATING,
     create,
 )
 
@@ -49,10 +48,6 @@ def transform(user_list: list) -> list:
                 salt = bcrypt.gensalt()
                 hashed = bcrypt.hashpw(password_bytes, salt)
                 user_dict[PASSWORD] = hashed.decode('utf-8')
-            elif fld == 'rating':
-                cell = (user[i] if i < len(user) else '').strip()
-                if cell:
-                    user_dict[RATING] = float(cell)
             else:
                 user_dict[fld] = user[i]
         rev_list.append(user_dict)

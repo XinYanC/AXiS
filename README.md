@@ -39,7 +39,7 @@ The API defines the following core models in `server/endpoints.py`:
 4. `user`
 
 - Key fields: `username`, `password` (hashed), `email` (`.edu`),
-  `name`, `age`, `bio`, `city`, `state`, `country`, `rating`,
+  `name`, `age`, `bio`, `city`, `state`, `country`,
   `saved_listings`, `created_at`
 
 5. `listing`

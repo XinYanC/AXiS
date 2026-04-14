@@ -249,28 +249,6 @@ def test_create_with_saved_listings():
         safe_delete(user)
 
 
-def test_create_with_rating():
-    """User created with rating stores the numeric value correctly."""
-    import time
-    timestamp = int(time.time() * 1000)
-    user = {
-        'username': f'ratingtest{timestamp}',
-        'name': 'Rating Test',
-        'email': f'ratingtest{timestamp}@example.edu',
-        **geo(),
-        qry.RATING: 4.5,
-    }
-    safe_delete(user)
-    qry.clear_cache()
-    qry.create(user)
-    try:
-        users = qry.read()
-        created = users[user[qry.USERNAME]]
-        assert created[qry.RATING] == 4.5
-    finally:
-        safe_delete(user)
-
-
 def test_create_sets_created_at():
     """User created should include an ISO-8601 created_at timestamp."""
     import time
@@ -303,8 +281,6 @@ def test_create_sets_created_at():
     ({'name': 'User'}, "non-empty 'username'"),
     ({'username': None}, "non-empty 'username'"),
     ({'username': 'test', 'email': 'invalid@example.com'}, "Email must end in .edu"),
-    ({'username': 'testrating', 'email': 'testrating@example.edu', **geo(), qry.RATING: 'bad'}, "'rating' must be a number"),
-    ({'username': 'testrange', 'email': 'testrange@example.edu', **geo(), qry.RATING: 7}, "'rating' must be between 0 and 5"),
     ({
         'username': 'nocity',
         'email': 'nocity@example.edu',
@@ -451,8 +427,3 @@ def test_update_saved_listings(temp_user_unique):
     assert updated.get(qry.SAVED_LISTINGS) == listing_ids
 
 
-def test_update_rating(temp_user_unique):
-    """Update user's rating."""
-    rec_id, rec = temp_user_unique
-    updated = qry.update(rec[qry.USERNAME], {qry.RATING: 3.5})
-    assert updated.get(qry.RATING) == 3.5

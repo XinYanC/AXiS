@@ -123,7 +123,7 @@ Loads user data from a tab-separated file:
 python3 ETL/load_users.py ETL/users.tsv
 ```
 
-The file should have columns: `username`, `password`, `name`, `age`, `bio`, `is_verified`, `email`, `city`, `state`, `country`, and optional `rating`.
+The file should have columns: `username`, `password`, `name`, `age`, `bio`, `is_verified`, `email`, `city`, `state`, `country`.
 
 #### Load Listings
 

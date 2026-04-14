@@ -449,7 +449,6 @@ def test_users_create(mock_create):
         "city": "New York",
         "state": "NY",
         "country": "USA",
-        "rating": 4.5,
     }
 
     # Act
@@ -479,11 +478,6 @@ def test_user_model_created_at_is_readonly():
     assert getattr(created_at_field, 'readonly', False) is True
     schema = getattr(created_at_field, '__schema__', {})
     assert schema.get('readOnly') is True
-
-
-def test_user_model_includes_rating():
-    """Swagger model exposes rating as an optional float field."""
-    assert 'rating' in ep.user_model
 
 
 @patch('server.endpoints.userqry.update')
