@@ -1,160 +1,116 @@
-# AXiS - GeoData SWE 2025 Project
+# AXiS
 
-## Team Members
+AXiS is the backend API service used by the Swapify project.
 
-- Aisha Roslan ar7805
-- Si Yue Jiang sj3834
-- XinYan Chen xc2496
+- Deployed API base URL: `https://xinyanc.pythonanywhere.com/`
+- Swapify frontend/project: `https://github.com/XinYanC/Swapify`
 
-## Project Description
-Senior Design Project based on geographical database.
+This service provides data and business endpoints for location data, users,
+listings, login/auth, and frontend location dropdown.
 
-[Progress and Goals](ProgressAndGoals.md)
+## API Purpose for Swapify
 
-## flask-api
+Swapify uses AXiS as its central API layer for:
 
-An example flask rest API server.
+- CRUD and search across `cities`, `states`, `countries`, `users`, and
+  `listings`
+- Authentication (`login`)
+- Dynamic dropdown/HATEOAS metadata for location-driven forms
+- Geo-enabled city data (`latitude`/`longitude`) for the frontend map
+- ETL-based data loading into MongoDB
 
-To build production, type `make prod`.
+## Data Models
 
-To create the env for a new developer, run `make dev_env`.
+The API defines the following core models in `server/endpoints.py`:
 
-## Running the API with a local MongoDB
+1. `cities`
 
-This project can connect to a MongoDB instance locally. The code will default to
-connecting to `mongodb://localhost:27017` when no cloud configuration is set.
+- Key fields: `name`, `state_code`, `country_code`, `latitude`, `longitude`
+- Note: `latitude` and `longitude` were added for map usage in Swapify frontend.
 
-Quick steps to run locally:
+2. `countries`
 
-1. Activate the virtualenv if needed:
+- Key fields: `name`, `code`
 
-   ```zsh
-   source .venv/bin/activate
-   # or: . .venv/bin/activate
-   ```
+3. `state`
 
-2. Install dependencies:
+- Key fields: `name`, `code`, `country_code`
 
-   pip install -r requirements.txt
-   brew tap mongodb/brew
-   brew install mongodb-community
+4. `user`
 
-3. Start a MongoDB server locally. On macOS with Homebrew (example):
+- Key fields: `username`, `password` (hashed), `email` (`.edu`),
+  `name`, `age`, `bio`, `city`, `state`, `country`, `rating`,
+  `saved_listings`, `created_at`
 
-   brew services start mongodb-community
+5. `listing`
 
-   or run `brew services start mongodb/brew/mongodb-community`
+- Key fields: `title`, `description`, `images`, `transaction_type`,
+  `owner`, `city`, `state`, `country`, `price`, `num_likes`, `status`
 
-   Or run `mongod` directly if you have a standalone install.
+6. `login`
 
-4. Go to `local.sh` and uncomment login and set CLOUD_MONGO=1
+- Request fields: `email`, `password`
+- Used by auth endpoint: `POST /auth/login`
 
-5. Run the API server from the repository root:
+## Endpoint Families
 
-   PYTHONPATH=$(pwd):$PYTHONPATH
-   FLASK_APP=server.endpoints flask run --debug --host=127.0.0.1 --port=8000
+Primary endpoint groups:
 
-6. To stop the mongo serviice:
+- `cities`
+- `states`
+- `countries`
+- `users`
+- `listings`
 
-   brew services stop mongodb-community
+Each resource family exposes a consistent pattern of operations like
+`/read`, `/count`, `/search`, `/create`, and `/delete` (plus `/update` where applicable).
 
-7. Go to `local.sh` and comment login and set CLOUD_MONGO=0
-
-If the Flask endpoint cannot reach MongoDB the server will return an error
-message indicating the DB is not reachable.
-
-## Loading Data with ETL Scripts
-
-The project includes ETL (Extract, Transform, Load) scripts to populate the database with geographical data.
-
-### Prerequisites
-
-1. Ensure MongoDB is running locally (see steps above)
-2. Create and activate the virtual environment:
-   ```zsh
-   python3 -m venv path/to/venv
-   source venv/bin/activate
-   # or: . venv/bin/activate
-   ```
-
-### Running ETL Scripts
-
-All ETL scripts are located in the `ETL/` directory and can be run from the project root.
-
-#### Load Countries
-
-Loads country data from a tab-separated file:
-
-```bash
-python3 ETL/load_countries.py ETL/countries.tsv
+```text
+https://xinyanc.pythonanywhere.com/
+	/cities/{read|count|search|create|delete}
+	/states/{read|count|search|create|delete}
+	/countries/{read|count|search|create|delete}
+	/users/{read|count|search|create|update|delete}
+	/listings/{read|count|search|by-user|upload-image|create|update|delete}
+	/auth/login
+	/system/dropdown-form
+	/system/dropdown-options
+	/hello
+	/endpoints
 ```
 
-The file should have columns: `country_name` and `country_code`.
+## Dropdown HATEOAS Endpoints
 
-#### Load States
+AXiS supports endpoint-driven form options for the frontend.
 
-Loads state/province data:
+- `GET /system/dropdown-form`
+  - Returns machine-readable form metadata and links.
+- `GET /system/dropdown-options`
+  - No query params: returns country options.
+  - `?country_code=USA`: returns states for that country.
+  - `?state_code=NY&country_code=USA`: returns matching cities.
 
-```bash
-python3 ETL/load_states.py ETL/states.tsv
+These responses include `_links` to support HATEOAS-style discovery.
+
+## ETL and Database Loads
+
+ETL inputs live in the `ETL/` folder (`cities.tsv`, `states.tsv`,
+`countries.tsv`, `users.tsv`, `listings.tsv`).
+
+Load scripts in `ETL/` and data tooling in `data/` are used to ingest these datasets into MongoDB collections used by AXiS endpoints.
+
+```text
+ETL/*.tsv -> ETL/load_*.py -> MongoDB collections -> AXiS API endpoints
 ```
 
-The file should have columns: `country_code`, `code`, and `name` (e.g. `USA` / `NY` / `New York`). If the `country_code` column is omitted from the header, every row is treated as `USA`.
+## Quick Health/Discovery Checks
 
-**Note**: If states already exist in the database, the script will raise a duplicate key error. You may need to clear existing states first or modify the script to handle duplicates.
+- `GET /hello` returns service liveness.
+- `GET /endpoints` returns the currently registered routes.
 
-**How dropdowns tie states to countries:** Each state document stores `country_code`. The API `GET /system/dropdown-options?country_code=USA` returns only states whose `country_code` matches (case-insensitive). Clients load countries first, then request states with the selected country’s code.
-
-#### Load Cities
-
-Loads city data from a tab-separated file:
+Example:
 
 ```bash
-python3 ETL/load_cities.py ETL/cities.tsv
+curl https://xinyanc.pythonanywhere.com/hello
+curl https://xinyanc.pythonanywhere.com/endpoints
 ```
-
-Or with an optional state_code override (applies the same state_code to all cities):
-
-```bash
-python3 ETL/load_cities.py ETL/cities.tsv CA
-```
-
-The file should have columns: `city_name`, `state_code`, `latitude`, `longitude`, and optional `country_code` (defaults to `USA` when missing or blank). Use `country_code` so the same `state_code` in two countries (e.g. `WA` for Washington state vs Western Australia) does not mix cities in `GET /system/dropdown-options?state_code=…&country_code=…`.
-
-#### Load Users
-
-Loads user data from a tab-separated file:
-
-```bash
-python3 ETL/load_users.py ETL/users.tsv
-```
-
-The file should have columns: `username`, `password`, `name`, `age`, `bio`, `is_verified`, `email`, `city`, `state`, `country`, and optional `rating`.
-
-#### Load Listings
-
-Loads marketplace listing data from a tab-separated file:
-
-```bash
-python3 ETL/load_listings.py ETL/listings.tsv
-```
-
-The file should have columns: `title`, `description`, `transaction_type`, `owner`, `city`, `state`, `country`, and optionally `images`, `price`, `num_likes`, `created_at`. Use `transaction_type` values `free` or `sell` only. The `owner` field should match a username from the users collection (load users first).
-
-## Environment Variables
-
-To use a cloud MongoDB deployment, you need to set environment variables:
-
-1. Edit `local.sh` and fill in your MongoDB credentials:
-
-   - `MONGO_USER`: Your MongoDB username
-   - `MONGO_PASSWD`: Your MongoDB password
-   - `CLOUD_MONGO`: Set to `1` for cloud MongoDB, `0` for local
-
-2. Run `source local.sh` and try executing a read.
-
-**Important**: Do not push your username and password to GitHub. Only modify it locally.
-
-**TroubleShooting**
-
-If you see a `FormulaUnavailableError: No available formula with the name "formula.jws.json".` error when trying to `brew install mongodb-community`, you can try running `brew reinstall llvm`. I also updated my MacOS and XCode. It should allow you to install mongodb-community after.
