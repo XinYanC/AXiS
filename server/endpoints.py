@@ -3,6 +3,8 @@ This is the file containing all of the endpoints for our flask app.
 The endpoint called `endpoints` will return all available endpoints.
 """
 
+import os
+import secrets
 import cities.queries as cityqry
 import countries.queries as countryqry
 import data.cloudinary_connect as cloudinarycon
@@ -83,6 +85,15 @@ SYSTEM_DROPDOWN_FORM = 'dropdown-form'
 SYSTEM_DROPDOWN_OPTIONS = 'dropdown-options'
 
 AUTH_LOGIN_EP = '/auth/login'
+
+# Dev-only: tail or list files under the PA log root (default /var/log).
+DEV_LOGS_EP = '/dev/logs'
+DEV_LOG_TOKEN_ENV = 'AXIS_DEV_LOG_TOKEN'
+DEV_LOG_ROOT_ENV = 'AXIS_DEV_LOG_ROOT'
+DEV_LOG_TOKEN_HEADER = 'X-AXIS-Dev-Log-Token'
+_DEV_LOG_MAX_TAIL_LINES = 5000
+_DEV_LOG_MAX_TAIL_SCAN_BYTES = 10 * 1024 * 1024
+_DEV_LOG_MAX_DIR_ENTRIES = 500
 
 # ==================== SWAGGER MODELS ====================
 
@@ -1097,6 +1108,167 @@ class SystemDropdownOptions(Resource):
             NUM_RECS: len(options),
             '_links': _dropdown_links(),
         }, 200
+
+
+# ==================== DEVELOPER / OPS (NOT FOR END USERS) ====================
+
+
+def _dev_logs_root():
+    """Log root directory (default /var/log on PA)."""
+    base = os.environ.get(DEV_LOG_ROOT_ENV, '/var/log')
+    return os.path.realpath(base)
+
+
+def _dev_logs_safe_target(relative_path):
+    """
+    Resolve a path under the configured log root (default /var/log on PA).
+    Rejects absolute paths and path-traversal outside the root.
+    """
+    root = _dev_logs_root()
+    rel = (relative_path or '').strip().replace('\\', os.sep).lstrip(os.sep)
+    joined = os.path.join(root, rel) if rel else root
+    full = os.path.realpath(joined)
+    root_prefix = root if root.endswith(os.sep) else root + os.sep
+    if full != root and not full.startswith(root_prefix):
+        raise ValueError('path must stay under the server log root')
+    return full
+
+
+def _dev_logs_auth_or_reject():
+    expected = os.environ.get(DEV_LOG_TOKEN_ENV, '').strip()
+    if not expected:
+        return (
+            {
+                ERROR: (
+                    'Developer log endpoint is disabled until '
+                    f'{DEV_LOG_TOKEN_ENV} is set on the server.'
+                ),
+            },
+            503,
+        )
+    auth = request.headers.get('Authorization', '') or ''
+    token = ''
+    if len(auth) >= 7 and auth[:7].lower() == 'bearer ':
+        token = auth[7:].strip()
+    if not token:
+        token = request.headers.get(DEV_LOG_TOKEN_HEADER, '').strip()
+    if not token:
+        return (
+            {
+                ERROR: (
+                    f'Send {DEV_LOG_TOKEN_HEADER} or '
+                    'Authorization: Bearer <token>.'
+                ),
+            },
+            401,
+        )
+    if not secrets.compare_digest(token, expected):
+        return ({ERROR: 'Invalid token'}, 401)
+    return None
+
+
+def _tail_log_file(path, n):
+    """Return the last n lines of a text log as a single string."""
+    n = max(1, min(int(n), _DEV_LOG_MAX_TAIL_LINES))
+    buf = b''
+    with open(path, 'rb') as f:
+        f.seek(0, os.SEEK_END)
+        pos = f.tell()
+        if pos == 0:
+            return ''
+        block = 65536
+        while pos > 0:
+            step = min(block, pos)
+            pos -= step
+            f.seek(pos)
+            buf = f.read(step) + buf
+            if buf.count(b'\n') >= n:
+                break
+            if len(buf) > _DEV_LOG_MAX_TAIL_SCAN_BYTES:
+                buf = buf[-_DEV_LOG_MAX_TAIL_SCAN_BYTES:]
+                break
+    parts = buf.split(b'\n')
+    if len(parts) > n:
+        parts = parts[-n:]
+    return b'\n'.join(parts).decode('utf-8', errors='replace')
+
+
+@api.route(DEV_LOGS_EP)
+class DevLogs(Resource):
+    """
+    Developer / ops only: list or tail files under the host log directory.
+    On PythonAnywhere, application logs typically live under `/var/log`.
+
+    Requires `AXIS_DEV_LOG_TOKEN` on the server. Authenticate with header
+    `X-AXIS-Dev-Log-Token: <token>` or `Authorization: Bearer <token>`.
+
+    Optional env `AXIS_DEV_LOG_ROOT` overrides the directory (defaults to
+    `/var/log`) for local testing or non-PA hosts.
+    """
+
+    @api.param(
+        'path',
+        'Path relative to the log root; omit to list the root directory.',
+        required=False,
+    )
+    @api.param(
+        'lines',
+        'Number of lines to return from the end of a file (default 400).',
+        required=False,
+    )
+    @handle_endpoint_errors()
+    def get(self):
+        auth_err = _dev_logs_auth_or_reject()
+        if auth_err is not None:
+            return auth_err
+
+        rel = request.args.get('path', '') or ''
+        lines_arg = request.args.get('lines', '400')
+        try:
+            n_lines = int(lines_arg)
+        except (TypeError, ValueError):
+            return {ERROR: 'lines must be an integer'}, 400
+
+        try:
+            target = _dev_logs_safe_target(rel)
+        except ValueError as e:
+            return {ERROR: str(e)}, 400
+
+        if not os.path.exists(target):
+            return {ERROR: 'path does not exist'}, 404
+
+        root = _dev_logs_root()
+        rel_display = rel.strip() or '.'
+
+        try:
+            if os.path.isdir(target):
+                all_names = sorted(os.listdir(target))
+                truncated = len(all_names) > _DEV_LOG_MAX_DIR_ENTRIES
+                names = all_names[:_DEV_LOG_MAX_DIR_ENTRIES]
+                return {
+                    'kind': 'directory',
+                    'log_root': root,
+                    'path': rel_display,
+                    'entries': names,
+                    NUM_RECS: len(names),
+                    'truncated': truncated,
+                }, 200
+
+            if os.path.isfile(target):
+                text = _tail_log_file(target, n_lines)
+                return {
+                    'kind': 'file',
+                    'log_root': root,
+                    'path': rel_display,
+                    'lines_requested': max(
+                        1, min(n_lines, _DEV_LOG_MAX_TAIL_LINES)
+                    ),
+                    'content': text,
+                }, 200
+        except PermissionError:
+            return {ERROR: 'permission denied for this path'}, 403
+
+        return {ERROR: 'not a readable file or directory'}, 400
 
 
 # ==================== UTILITY ENDPOINTS ====================

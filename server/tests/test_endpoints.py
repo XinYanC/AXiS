@@ -2,9 +2,11 @@ from http.client import (
     BAD_REQUEST,
     NOT_FOUND,
     OK,
+    SERVICE_UNAVAILABLE,
     UNAUTHORIZED,
 )
 from io import BytesIO
+from urllib.parse import quote
 
 from unittest.mock import patch
 
@@ -974,3 +976,63 @@ def test_system_dropdown_options_cities_with_country(mock_read):
     assert resp_aus.status_code == OK
     d_aus = resp_aus.get_json()
     assert {o['value'] for o in d_aus['options']} == {'Perth'}
+
+
+# ==================== DEVELOPER LOGS ENDPOINT ====================
+
+
+def test_dev_logs_disabled_without_token_env(monkeypatch):
+    monkeypatch.delenv(ep.DEV_LOG_TOKEN_ENV, raising=False)
+    resp = TEST_CLIENT.get(ep.DEV_LOGS_EP)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+    assert ep.ERROR in resp.get_json()
+
+
+def test_dev_logs_unauthorized_without_header(monkeypatch):
+    monkeypatch.setenv(ep.DEV_LOG_TOKEN_ENV, 'test-secret-token')
+    resp = TEST_CLIENT.get(ep.DEV_LOGS_EP)
+    assert resp.status_code == UNAUTHORIZED
+
+
+def test_dev_logs_invalid_token(monkeypatch):
+    monkeypatch.setenv(ep.DEV_LOG_TOKEN_ENV, 'correct')
+    resp = TEST_CLIENT.get(
+        ep.DEV_LOGS_EP,
+        headers={ep.DEV_LOG_TOKEN_HEADER: 'wrong'},
+    )
+    assert resp.status_code == UNAUTHORIZED
+
+
+def test_dev_logs_list_and_tail(tmp_path, monkeypatch):
+    monkeypatch.setenv(ep.DEV_LOG_TOKEN_ENV, 'tok')
+    monkeypatch.setenv(ep.DEV_LOG_ROOT_ENV, str(tmp_path))
+    (tmp_path / 'app.log').write_text('line1\nline2\nline3\nline4', encoding='utf-8')
+
+    headers = {ep.DEV_LOG_TOKEN_HEADER: 'tok'}
+    resp = TEST_CLIENT.get(ep.DEV_LOGS_EP, headers=headers)
+    assert resp.status_code == OK
+    data = resp.get_json()
+    assert data['kind'] == 'directory'
+    assert 'app.log' in data['entries']
+
+    tail = TEST_CLIENT.get(
+        f'{ep.DEV_LOGS_EP}?path=app.log&lines=2',
+        headers=headers,
+    )
+    assert tail.status_code == OK
+    body = tail.get_json()
+    assert body['kind'] == 'file'
+    assert body['content'] == 'line3\nline4'
+
+
+def test_dev_logs_bearer_auth(tmp_path, monkeypatch):
+    monkeypatch.setenv(ep.DEV_LOG_TOKEN_ENV, 'bear-me')
+    monkeypatch.setenv(ep.DEV_LOG_ROOT_ENV, str(tmp_path))
+    (tmp_path / 'x.log').write_text('ok', encoding='utf-8')
+    resp = TEST_CLIENT.get(
+        f'{ep.DEV_LOGS_EP}?path=x.log',
+        headers={'Authorization': 'Bearer bear-me'},
+    )
+    assert resp.status_code == OK
+    assert resp.get_json()['content'] == 'ok'
+
