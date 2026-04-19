@@ -19,14 +19,39 @@ from flask_cors import CORS
 from werkzeug.datastructures import FileStorage
 
 
+# Dev-only: tail or list files under the PA log root (default /var/log).
+DEV_LOGS_EP = '/dev/logs'
+DEV_LOG_TOKEN_ENV = 'AXIS_DEV_LOG_TOKEN'
+DEV_LOG_ROOT_ENV = 'AXIS_DEV_LOG_ROOT'
+DEV_LOG_TOKEN_HEADER = 'X-AXIS-Dev-Log-Token'
+_DEV_LOG_MAX_TAIL_LINES = 5000
+_DEV_LOG_MAX_TAIL_SCAN_BYTES = 10 * 1024 * 1024
+_DEV_LOG_MAX_DIR_ENTRIES = 500
+
 app = Flask(__name__)
+
 CORS(
     app,
     resources={r"/*": {"origins": "*"}},
-    allow_headers=["Content-Type", "Authorization"],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "X-AXIS-Dev-Log-Token",
+    ],
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 )
-api = Api(app)
+
+# Swagger UI: "Authorize" for /dev/logs (matches AXIS_DEV_LOG_TOKEN on server).
+_DEV_LOG_SWAGGER_AUTH = {
+    'X_AXIS_Dev_Log_Token': {
+        'type': 'apiKey',
+        'in': 'header',
+        'name': DEV_LOG_TOKEN_HEADER,
+        'description': 'Same value as AXIS_DEV_LOG_TOKEN on the server.',
+    }
+}
+
+api = Api(app, authorizations=_DEV_LOG_SWAGGER_AUTH)
 
 
 def handle_endpoint_errors(value_error_status=400):
@@ -85,15 +110,6 @@ SYSTEM_DROPDOWN_FORM = 'dropdown-form'
 SYSTEM_DROPDOWN_OPTIONS = 'dropdown-options'
 
 AUTH_LOGIN_EP = '/auth/login'
-
-# Dev-only: tail or list files under the PA log root (default /var/log).
-DEV_LOGS_EP = '/dev/logs'
-DEV_LOG_TOKEN_ENV = 'AXIS_DEV_LOG_TOKEN'
-DEV_LOG_ROOT_ENV = 'AXIS_DEV_LOG_ROOT'
-DEV_LOG_TOKEN_HEADER = 'X-AXIS-Dev-Log-Token'
-_DEV_LOG_MAX_TAIL_LINES = 5000
-_DEV_LOG_MAX_TAIL_SCAN_BYTES = 10 * 1024 * 1024
-_DEV_LOG_MAX_DIR_ENTRIES = 500
 
 # ==================== SWAGGER MODELS ====================
 
@@ -1215,6 +1231,11 @@ class DevLogs(Resource):
         'lines',
         'Number of lines to return from the end of a file (default 400).',
         required=False,
+    )
+    @api.doc(
+        security=[
+            {'X_AXIS_Dev_Log_Token': []}
+        ],
     )
     @handle_endpoint_errors()
     def get(self):
