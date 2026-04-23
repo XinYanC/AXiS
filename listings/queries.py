@@ -262,6 +262,10 @@ def delete(listing_id: str) -> bool:
 
 @needs_cache
 def read() -> dict:
+    # In cloud environments with multiple backend instances, each process has
+    # its own in-memory cache. Refresh on read to avoid returning stale listing
+    # snapshots after like/unlike updates.
+    load_cache()
     return cache
 
 

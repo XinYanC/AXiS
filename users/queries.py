@@ -211,6 +211,10 @@ def update(username_or_id: str, update_dict: dict) -> dict:
 
 @needs_cache
 def read() -> dict:
+    # In cloud environments with multiple backend instances, each process has
+    # its own in-memory cache. Refresh on read to avoid returning stale user
+    # records (e.g., outdated saved_listings) from a different instance.
+    load_cache()
     return cache
 
 
