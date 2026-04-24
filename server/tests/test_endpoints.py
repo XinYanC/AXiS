@@ -435,11 +435,18 @@ def test_users_count(mock_count):
     assert ep.USER_RESP in resp_json
 
 
+@patch('server.endpoints._basic_auth_user')
 @patch('server.endpoints.userqry.create')
-def test_users_create(mock_create):
-    """Test the /users/create endpoint."""
+def test_users_create(mock_create, mock_basic):
+    """
+    Test the /users/create endpoint.
+
+    The PEOPLE / create security policy (see security.security + temp_recs)
+    requires a Basic-auth user on the allowlist. We mock a matching caller.
+    """
     # Arrange
     mock_create.return_value = '507f1f77bcf86cd799439014'
+    mock_basic.return_value = {'email': 'ejc369@nyu.edu', 'username': 'e'}
     user_data = {
         "username": "testuser",
         "password": "password123",
@@ -471,6 +478,56 @@ def test_users_create(mock_create):
     called_payload = mock_create.call_args.args[0]
     assert 'created_at' not in called_payload
     mock_create.assert_called_once()
+
+
+@patch('server.endpoints._basic_auth_user', return_value=None)
+@patch('server.endpoints.userqry.create')
+def test_users_create_rejects_unauthenticated_admin(mock_create, _mock_auth):
+    """PEOPLE / create without Basic auth is rejected (401)."""
+    mock_create.return_value = 'x'
+    user_data = {
+        "username": "a",
+        "password": "password123",
+        "name": "A",
+        "email": "a@example.edu",
+        "city": "New York",
+        "state": "NY",
+        "country": "USA",
+    }
+    resp = TEST_CLIENT.post(
+        f"{ep.USERS_EPS}/{ep.CREATE}",
+        json=user_data,
+    )
+    assert resp.status_code == UNAUTHORIZED
+    assert ep.ERROR in resp.get_json()
+    mock_create.assert_not_called()
+
+
+@patch('server.endpoints._basic_auth_user')
+@patch('server.endpoints.userqry.create')
+def test_users_create_rejects_wrong_whitelist_user(mock_create, mock_basic):
+    """Authenticated but not on user_list is rejected (403)."""
+    mock_basic.return_value = {
+        'email': 'stranger@nyu.edu',
+        'username': 's',
+    }
+    mock_create.return_value = 'x'
+    user_data = {
+        "username": "a",
+        "password": "password123",
+        "name": "A",
+        "email": "a@example.edu",
+        "city": "New York",
+        "state": "NY",
+        "country": "USA",
+    }
+    resp = TEST_CLIENT.post(
+        f"{ep.USERS_EPS}/{ep.CREATE}",
+        json=user_data,
+    )
+    assert resp.status_code == 403
+    assert ep.ERROR in resp.get_json()
+    mock_create.assert_not_called()
 
 
 def test_user_model_created_at_is_readonly():

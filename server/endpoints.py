@@ -9,6 +9,7 @@ import cities.queries as cityqry
 import countries.queries as countryqry
 import data.cloudinary_connect as cloudinarycon
 import listings.queries as listingqry
+import security.security as sec
 import states.queries as stateqry
 import users.queries as userqry
 from functools import wraps
@@ -52,6 +53,18 @@ _DEV_LOG_SWAGGER_AUTH = {
 }
 
 api = Api(app, authorizations=_DEV_LOG_SWAGGER_AUTH)
+
+
+def _basic_auth_user():
+    """
+    If the request has HTTP Basic Auth, verify email + password and return
+    the user document; otherwise return None. Used with
+    security.is_operation_allowed.
+    """
+    auth = request.authorization
+    if not auth or not auth.username or auth.password is None:
+        return None
+    return userqry.authenticate(auth.username, auth.password)
 
 
 def handle_endpoint_errors(value_error_status=400):
@@ -678,6 +691,23 @@ class UsersCreate(Resource):
         user_data = request.json
         if not user_data:
             return {ERROR: 'Request body must contain JSON data'}, 400
+        auth_user = _basic_auth_user()
+        auth_valid = auth_user is not None
+        authed_email = (
+            (auth_user.get('email') or '').strip() or None
+            if auth_user
+            else None
+        )
+        result, err_msg = sec.is_operation_allowed(
+            sec.PEOPLE,
+            sec.CREATE,
+            authed_user_email=authed_email,
+            auth_valid=auth_valid,
+        )
+        if result == 'unauthorized':
+            return {ERROR: err_msg}, 401
+        if result == 'forbidden':
+            return {ERROR: err_msg}, 403
         # Store original data before create modifies it
         original_data = dict(user_data)
         # Don't return password in response
