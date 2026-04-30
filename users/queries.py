@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from functools import wraps
 from bson import ObjectId
 import data.db_connect as dbc
+from data.email_address import EduEmailAddress
 from data.db_connect import is_valid_id  # noqa F401
 import bcrypt
 
@@ -85,10 +86,12 @@ def create(user, reload=True):
     username = user.get(USERNAME)
     if username in cache:
         raise ValueError(f'Duplicate key: {username=}')
-    # Validate email ends in .edu if provided
+    # Validate and normalize edu email if provided.
     if EMAIL in user and user[EMAIL]:
-        if not user[EMAIL].endswith('.edu'):
-            raise ValueError("Email must end in .edu")
+        try:
+            user[EMAIL] = str(EduEmailAddress(user[EMAIL]))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(str(exc)) from exc
     for fld in (CITY, STATE, COUNTRY):
         if fld not in user or not str(user.get(fld) or '').strip():
             raise ValueError(f"User must have a non-empty '{fld}'.")
@@ -226,7 +229,10 @@ def find_user_by_email(email: str):
     """
     if not email or not isinstance(email, str) or not email.strip():
         return None
-    email_lower = email.strip().lower()
+    try:
+        email_lower = str(EduEmailAddress(email))
+    except (TypeError, ValueError):
+        return None
     for user in cache.values():
         if (user.get(EMAIL) or '').strip().lower() == email_lower:
             return user

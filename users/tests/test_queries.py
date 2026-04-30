@@ -280,7 +280,8 @@ def test_create_sets_created_at():
     (17, "must be a dictionary"),
     ({'name': 'User'}, "non-empty 'username'"),
     ({'username': None}, "non-empty 'username'"),
-    ({'username': 'test', 'email': 'invalid@example.com'}, "Email must end in .edu"),
+    ({'username': 'test', 'email': 'invalid@example.com'}, "Email must end with .edu"),
+    ({'username': 'test', 'email': 'bad@@example.edu'}, "Invalid email format"),
     ({
         'username': 'nocity',
         'email': 'nocity@example.edu',
@@ -291,6 +292,31 @@ def test_create_sets_created_at():
 def test_create_invalid_inputs(user_data, match):
     with pytest.raises(ValueError, match=match):
         qry.create(user_data)
+
+
+def test_create_normalizes_edu_email():
+    import time
+    timestamp = int(time.time() * 1000)
+    user = {
+        'username': f'emailnorm{timestamp}',
+        'name': 'Email Normalize',
+        'email': '  Student@School.EDU ',
+        **geo(),
+    }
+    safe_delete(user)
+    qry.clear_cache()
+    qry.create(user)
+    try:
+        users = qry.read()
+        created = users[user[qry.USERNAME]]
+        assert created[qry.EMAIL] == 'student@school.edu'
+    finally:
+        safe_delete(user)
+
+
+def test_find_user_by_email_rejects_invalid_or_non_edu():
+    assert qry.find_user_by_email('not-an-email') is None
+    assert qry.find_user_by_email('student@gmail.com') is None
 
 def test_delete_by_username(temp_user_unique):
     rec_id, rec = temp_user_unique
