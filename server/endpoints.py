@@ -3,8 +3,10 @@ This is the file containing all of the endpoints for our flask app.
 The endpoint called `endpoints` will return all available endpoints.
 """
 
+import gzip
 import os
 import secrets
+from collections import deque
 import cities.queries as cityqry
 import countries.queries as countryqry
 import data.cloudinary_connect as cloudinarycon
@@ -28,6 +30,7 @@ DEV_LOG_TOKEN_HEADER = 'X-AXIS-Dev-Log-Token'
 _DEV_LOG_MAX_TAIL_LINES = 5000
 _DEV_LOG_MAX_TAIL_SCAN_BYTES = 10 * 1024 * 1024
 _DEV_LOG_MAX_DIR_ENTRIES = 500
+_DEV_LOG_MAX_GZIP_DECOMPRESS_SCAN_BYTES = 50 * 1024 * 1024
 
 app = Flask(__name__)
 
@@ -1213,8 +1216,45 @@ def _dev_logs_auth_or_reject():
     return None
 
 
+def _dev_logs_peek_gzip(path):
+    try:
+        with open(path, 'rb') as f:
+            return f.read(2) == b'\x1f\x8b'
+    except OSError:
+        return False
+
+
+def _tail_gzip_log_file(path, n):
+    """
+    Return the last n lines of a gzip-compressed text log.
+
+    gzip is read sequentially from the start (no EOF seek); we decompress in
+    a stream and retain only the last n lines while enforcing a scan budget.
+    """
+    n = max(1, min(int(n), _DEV_LOG_MAX_TAIL_LINES))
+    dq = deque(maxlen=n)
+    scanned = 0
+    try:
+        with gzip.open(path, 'rb') as f:
+            for raw in f:
+                scanned += len(raw)
+                if scanned > _DEV_LOG_MAX_GZIP_DECOMPRESS_SCAN_BYTES:
+                    return (
+                        f'[log tail truncated: gzip stream exceeded '
+                        f'{_DEV_LOG_MAX_GZIP_DECOMPRESS_SCAN_BYTES} '
+                        'bytes decompressed; download or zcat locally]\n'
+                        + '\n'.join(dq)
+                    )
+                dq.append(raw.decode('utf-8', errors='replace').rstrip('\r\n'))
+    except (gzip.BadGzipFile, EOFError, OSError):
+        return '[axis /dev/logs: not a readable gzip archive]'
+    return '\n'.join(dq)
+
+
 def _tail_log_file(path, n):
     """Return the last n lines of a text log as a single string."""
+    if _dev_logs_peek_gzip(path):
+        return _tail_gzip_log_file(path, n)
     n = max(1, min(int(n), _DEV_LOG_MAX_TAIL_LINES))
     buf = b''
     with open(path, 'rb') as f:
