@@ -275,6 +275,103 @@ def test_search_listings_by_owner_invalid_input(monkeypatch):
         qry.search_listings_by_owner('   ')
 
 
+# ---- read_paginated ---------------------------------------------------
+
+@pytest.fixture
+def paginated_cache(monkeypatch):
+    """A small in-memory cache + a no-op load_cache for paginated tests."""
+    sample = {
+        'id1': {
+            qry.TITLE: 'A', qry.OWNER: 'a@nyu.edu',
+            qry.STATUS: 'available', qry.CREATED_AT: '2026-01-01',
+            qry.PRICE: 10, qry.NUM_LIKES: 1,
+        },
+        'id2': {
+            qry.TITLE: 'B', qry.OWNER: 'b@nyu.edu',
+            qry.STATUS: 'available', qry.CREATED_AT: '2026-02-01',
+            qry.PRICE: 20, qry.NUM_LIKES: 2,
+        },
+        'id3': {
+            qry.TITLE: 'C', qry.OWNER: 'a@nyu.edu',
+            qry.STATUS: 'sold', qry.CREATED_AT: '2026-03-01',
+            qry.PRICE: 30, qry.NUM_LIKES: 3,
+        },
+        'id4': {
+            qry.TITLE: 'D', qry.OWNER: 'a@nyu.edu',
+            qry.STATUS: 'available', qry.CREATED_AT: '2026-04-01',
+            qry.PRICE: 5, qry.NUM_LIKES: 0,
+        },
+    }
+    monkeypatch.setattr(qry, 'cache', sample)
+    monkeypatch.setattr(qry, 'load_cache', lambda: None)
+    return sample
+
+
+def test_read_paginated_default_sort_desc_created_at(paginated_cache):
+    res = qry.read_paginated()
+    assert res['total'] == 4
+    assert res['page'] == 1
+    assert res['page_size'] == qry.PAGE_SIZE_DEFAULT
+    assert res['has_next'] is False
+    titles = [it[qry.TITLE] for it in res['items']]
+    assert titles == ['D', 'C', 'B', 'A']  # newest first
+
+
+def test_read_paginated_status_filter(paginated_cache):
+    res = qry.read_paginated(status='available')
+    assert res['total'] == 3
+    assert all(it[qry.STATUS] == 'available' for it in res['items'])
+
+
+def test_read_paginated_owner_filter_case_insensitive(paginated_cache):
+    res = qry.read_paginated(owner='A@NYU.EDU')
+    assert res['total'] == 3
+    assert all(it[qry.OWNER] == 'a@nyu.edu' for it in res['items'])
+
+
+def test_read_paginated_pagination_boundaries(paginated_cache):
+    p1 = qry.read_paginated(page=1, page_size=2)
+    p2 = qry.read_paginated(page=2, page_size=2)
+    p3 = qry.read_paginated(page=3, page_size=2)
+    assert p1['total'] == p2['total'] == p3['total'] == 4
+    assert p1['has_next'] is True
+    assert p2['has_next'] is False
+    assert p3['items'] == []
+    # No overlap between page 1 and page 2.
+    p1_titles = {it[qry.TITLE] for it in p1['items']}
+    p2_titles = {it[qry.TITLE] for it in p2['items']}
+    assert p1_titles.isdisjoint(p2_titles)
+
+
+def test_read_paginated_page_size_capped(paginated_cache):
+    res = qry.read_paginated(page_size=10_000)
+    assert res['page_size'] == qry.PAGE_SIZE_MAX
+
+
+def test_read_paginated_sort_ascending_price(paginated_cache):
+    res = qry.read_paginated(sort='price')
+    prices = [it[qry.PRICE] for it in res['items']]
+    assert prices == sorted(prices)
+
+
+def test_read_paginated_invalid_inputs(paginated_cache):
+    with pytest.raises(ValueError, match="'page'"):
+        qry.read_paginated(page=0)
+    with pytest.raises(ValueError, match="'page_size'"):
+        qry.read_paginated(page_size=0)
+    with pytest.raises(ValueError, match='sort must be one of'):
+        qry.read_paginated(sort='not_a_field')
+
+
+def test_read_paginated_combined_filter_and_sort(paginated_cache):
+    res = qry.read_paginated(
+        status='available', owner='a@nyu.edu', sort='-num_likes',
+    )
+    titles = [it[qry.TITLE] for it in res['items']]
+    # only id1 (likes=1) and id4 (likes=0) match; -num_likes => id1 first
+    assert titles == ['A', 'D']
+
+
 def test_create_with_price_and_images():
     temp_rec = get_temp_rec()
     temp_rec[qry.PRICE] = 10.5

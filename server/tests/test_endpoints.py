@@ -711,7 +711,7 @@ def test_users_delete_wrong_owner(_mock_get, mock_delete, _mock_auth):
 
 @patch('server.endpoints.listingqry.read')
 def test_listings_read(mock_read):
-    """Test the /listings/read endpoint."""
+    """Test the /listings/read endpoint (legacy, no query params)."""
     mock_data = {
         'id1': {'title': 'Item A', 'description': 'Desc A', 'owner': 'a@nyu.edu'},
         'id2': {'title': 'Item B', 'description': 'Desc B', 'owner': 'b@nyu.edu'},
@@ -725,6 +725,33 @@ def test_listings_read(mock_read):
     assert ep.LISTING_RESP in resp_json
     assert resp_json[ep.LISTING_RESP] == mock_data
     assert resp_json[ep.NUM_RECS] == len(mock_data)
+
+
+@patch('server.endpoints.listingqry.read_paginated')
+def test_listings_read_paginated_envelope(mock_paginated):
+    """Test that /listings/read with page params returns the new envelope."""
+    mock_paginated.return_value = {
+        'items': [{'title': 'A'}],
+        'page': 2,
+        'page_size': 1,
+        'total': 5,
+        'has_next': True,
+    }
+
+    resp = TEST_CLIENT.get(
+        f"{ep.LISTINGS_EPS}/{ep.READ}?page=2&page_size=1&status=available"
+    )
+    resp_json = resp.get_json()
+
+    assert resp.status_code == OK
+    assert resp_json['items'] == [{'title': 'A'}]
+    assert resp_json['page'] == 2
+    assert resp_json['has_next'] is True
+    mock_paginated.assert_called_once()
+    kwargs = mock_paginated.call_args.kwargs
+    assert kwargs['page'] == '2'
+    assert kwargs['page_size'] == '1'
+    assert kwargs['status'] == 'available'
 
 
 @patch('server.endpoints.listingqry.num_listings')

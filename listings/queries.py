@@ -269,6 +269,93 @@ def read() -> dict:
     return cache
 
 
+PAGE_SIZE_DEFAULT = 20
+PAGE_SIZE_MAX = 100
+SORTABLE_FIELDS = {CREATED_AT, TITLE, PRICE, NUM_LIKES}
+
+
+@needs_cache
+def read_paginated(
+    page=1,
+    page_size=PAGE_SIZE_DEFAULT,
+    status=None,
+    owner=None,
+    sort=None,
+):
+    """
+    Return a paginated, filtered, sorted slice of listings.
+
+    Params:
+      page: 1-based page number.
+      page_size: items per page (clamped to PAGE_SIZE_MAX).
+      status: case-insensitive exact-match filter on the status field.
+      owner: case-insensitive exact-match filter on the owner field.
+      sort: field name with optional '-' prefix for descending. Allowed
+            fields: created_at, title, price, num_likes. Default
+            '-created_at'.
+
+    Returns dict: items (list), page, page_size, total, has_next.
+    """
+    load_cache()
+
+    try:
+        page = int(page)
+    except (TypeError, ValueError):
+        raise ValueError("'page' must be a positive integer")
+    if page < 1:
+        raise ValueError("'page' must be a positive integer")
+    try:
+        page_size = int(page_size)
+    except (TypeError, ValueError):
+        raise ValueError("'page_size' must be a positive integer")
+    if page_size < 1:
+        raise ValueError("'page_size' must be at least 1")
+    page_size = min(page_size, PAGE_SIZE_MAX)
+
+    if sort is None or sort == '':
+        sort = f'-{CREATED_AT}'
+    if not isinstance(sort, str):
+        raise ValueError("'sort' must be a string")
+    descending = sort.startswith('-')
+    sort_field = sort[1:] if descending else sort
+    if sort_field not in SORTABLE_FIELDS:
+        raise ValueError(
+            f"sort must be one of {sorted(SORTABLE_FIELDS)} "
+            f"(prefix with '-' for descending), got {sort!r}"
+        )
+
+    status_norm = status.strip().lower() if isinstance(status, str) else None
+    owner_norm = owner.strip().lower() if isinstance(owner, str) else None
+
+    items = []
+    for listing in cache.values():
+        if status_norm:
+            if (listing.get(STATUS) or '').strip().lower() != status_norm:
+                continue
+        if owner_norm:
+            if (listing.get(OWNER) or '').strip().lower() != owner_norm:
+                continue
+        items.append(listing)
+
+    def _sort_key(it):
+        value = it.get(sort_field)
+        # None sorts last regardless of direction.
+        return (value is None, value if value is not None else '')
+
+    items.sort(key=_sort_key, reverse=descending)
+
+    total = len(items)
+    start = (page - 1) * page_size
+    end = start + page_size
+    return {
+        'items': items[start:end],
+        'page': page,
+        'page_size': page_size,
+        'total': total,
+        'has_next': end < total,
+    }
+
+
 @needs_cache
 def search_listings_by_title(search_term: str) -> dict:
     """

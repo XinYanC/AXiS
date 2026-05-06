@@ -860,16 +860,62 @@ class UsersDelete(Resource):
 
 # ==================== LISTINGS ENDPOINTS ====================
 
+_LISTINGS_PAGE_PARAMS = {'page', 'page_size', 'status', 'owner', 'sort'}
+
+
 @api.route(f'{LISTINGS_EPS}/{READ}')
 class ListingsRead(Resource):
     """
     Interact with listings collection
     """
+    @api.param(
+        'page',
+        'Page number (1-based). Sending any pagination param switches '
+        'the response shape to {items, page, page_size, total, has_next}.',
+        required=False,
+    )
+    @api.param(
+        'page_size',
+        f'Items per page (1..{listingqry.PAGE_SIZE_MAX}, default '
+        f'{listingqry.PAGE_SIZE_DEFAULT}).',
+        required=False,
+    )
+    @api.param(
+        'status',
+        'Filter by listing status (e.g., "available").',
+        required=False,
+    )
+    @api.param(
+        'owner',
+        'Filter by owner email (case-insensitive exact match).',
+        required=False,
+    )
+    @api.param(
+        'sort',
+        "Sort field with optional '-' prefix for descending. Allowed: "
+        "created_at, title, price, num_likes. Default '-created_at'.",
+        required=False,
+    )
     @handle_endpoint_errors()
     def get(self):
         """
-        Returns all listings in the database.
+        Returns listings.
+
+        - With NO query params: legacy shape {Listings: {id: listing,...},
+          'Number of Records': N} for back-compat.
+        - With ANY of {page, page_size, status, owner, sort}: paginated
+          envelope {items: [...], page, page_size, total, has_next}.
         """
+        if _LISTINGS_PAGE_PARAMS.intersection(request.args.keys()):
+            return listingqry.read_paginated(
+                page=request.args.get('page', 1),
+                page_size=request.args.get(
+                    'page_size', listingqry.PAGE_SIZE_DEFAULT,
+                ),
+                status=request.args.get('status'),
+                owner=request.args.get('owner'),
+                sort=request.args.get('sort'),
+            )
         listings = listingqry.read()
         num_recs = len(listings)
         return {
