@@ -24,6 +24,17 @@ def test_hello():
     assert ep.HELLO_RESP in resp_json
 
 
+def test_endpoints_listing_excludes_dev_routes():
+    """GET /endpoints must not advertise /dev/* routes to anonymous callers."""
+    resp = TEST_CLIENT.get(ep.ENDPOINT_EP)
+    assert resp.status_code == OK
+    listed = resp.get_json()['Available endpoints']
+    assert all(not r.startswith('/dev/') for r in listed), (
+        f'leaked dev routes: {[r for r in listed if r.startswith("/dev/")]}'
+    )
+    assert ep.HELLO_EP in listed  # sanity: ordinary routes still present
+
+
 # ==================== HEALTH ENDPOINT TESTS ====================
 
 @patch('server.endpoints._check_cloudinary', return_value=(True, None))
@@ -495,7 +506,8 @@ def test_users_count(mock_count):
     # Assert
     assert resp.status_code == OK
     assert resp_json['count'] == 42
-    assert ep.USER_RESP in resp_json
+    # Count responses are now {count: N} only — no English-string aliases.
+    assert ep.USER_RESP not in resp_json
 
 
 @patch('server.endpoints._basic_auth_user')
@@ -827,7 +839,7 @@ def test_listings_count(mock_count):
 
     assert resp.status_code == OK
     assert resp_json['count'] == 15
-    assert ep.LISTING_RESP in resp_json
+    assert ep.LISTING_RESP not in resp_json
 
 
 @patch('server.endpoints.listingqry.search_listings_by_title')

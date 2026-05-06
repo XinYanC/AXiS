@@ -2,11 +2,14 @@
 All interaction with MongoDB should be through this file!
 We may be required to use a new database at any point.
 """
+import logging
 import os
 
 import certifi
 import pymongo as pm
 from functools import wraps
+
+logger = logging.getLogger(__name__)
 
 LOCAL = "0"
 CLOUD = "1"
@@ -149,7 +152,9 @@ def create(collection, doc, db=GEO_DB):
     """
     Insert a single doc into collection.
     """
-    print(f'{doc=}')
+    # Don't log `doc` itself — for the users collection it includes the
+    # bcrypt-hashed password and the email, which would end up in stdout.
+    logger.debug('insert into %s.%s', db, collection)
     ret = client[db][collection].insert_one(doc)
     return str(ret.inserted_id)
 
@@ -170,7 +175,7 @@ def delete(collection: str, filt: dict, db=GEO_DB):
     """
     Find with a filter and return after deleting the first doc found.
     """
-    print(f'{filt=}')
+    logger.debug('delete from %s.%s', db, collection)
     del_result = client[db][collection].delete_one(filt)
     return del_result.deleted_count
 

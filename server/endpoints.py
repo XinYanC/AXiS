@@ -423,10 +423,7 @@ class CitiesCount(Resource):
         Returns the total number of cities in the database.
         """
         count = cityqry.num_cities()
-        return {
-            'count': count,
-            CITY_RESP: f'Total cities: {count}',
-        }
+        return {'count': count}
 
 
 @api.route(f'{CITIES_EPS}/{SEARCH}')
@@ -535,10 +532,7 @@ class CountriesCount(Resource):
         Returns the total number of countries in the database.
         """
         count = countryqry.num_countries()
-        return {
-            'count': count,
-            COUNTRY_RESP: f'Total countries: {count}',
-        }
+        return {'count': count}
 
 
 @api.route(f'{COUNTRIES_EPS}/{SEARCH}')
@@ -646,10 +640,7 @@ class StatesCount(Resource):
         Returns the total number of states in the database.
         """
         count = stateqry.num_states()
-        return {
-            'count': count,
-            STATE_RESP: f'Total states: {count}',
-        }
+        return {'count': count}
 
 
 @api.route(f'{STATES_EPS}/{SEARCH}')
@@ -760,10 +751,7 @@ class UsersCount(Resource):
         Returns the total number of users in the database.
         """
         count = userqry.num_users()
-        return {
-            'count': count,
-            USER_RESP: f'Total users: {count}',
-        }
+        return {'count': count}
 
 
 @api.route(f'{USERS_EPS}/{SEARCH}')
@@ -961,10 +949,7 @@ class ListingsCount(Resource):
         Returns the total number of listings in the database.
         """
         count = listingqry.num_listings()
-        return {
-            'count': count,
-            LISTING_RESP: f'Total listings: {count}',
-        }
+        return {'count': count}
 
 
 @api.route(f'{LISTINGS_EPS}/{SEARCH}')
@@ -1594,7 +1579,13 @@ class Endpoints(Resource):
     """
     def get(self):
         """
-        The `get()` method will return a sorted list of available endpoints.
+        The `get()` method will return a sorted list of available endpoints,
+        excluding the developer-only `/dev/*` surface (still callable with
+        the dev token, just not advertised to anonymous callers).
         """
-        endpoints = sorted(rule.rule for rule in api.app.url_map.iter_rules())
+        endpoints = sorted(
+            rule.rule
+            for rule in api.app.url_map.iter_rules()
+            if not rule.rule.startswith('/dev/')
+        )
         return {"Available endpoints": endpoints}

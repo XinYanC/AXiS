@@ -115,19 +115,14 @@ def create(user, reload=True):
 
 
 def delete(username_or_id: str) -> bool:
-    # Try to treat as ObjectId first (MongoDB _id)
-    # ObjectIds are 24 hex characters
-    if len(username_or_id) == 24:
-        try:
-            obj_id = ObjectId(username_or_id)
-            ret = dbc.delete(USER_COLLECTION, {dbc.MONGO_ID: obj_id})
-            if ret < 1:
-                raise ValueError(f'User not found: {username_or_id}')
-            load_cache()
-            return ret > 0
-        except Exception:
-            # If ObjectId conversion fails, fall through to username
-            pass
+    # Try as ObjectId first; bson knows the real validity rules.
+    if ObjectId.is_valid(username_or_id):
+        obj_id = ObjectId(username_or_id)
+        ret = dbc.delete(USER_COLLECTION, {dbc.MONGO_ID: obj_id})
+        if ret < 1:
+            raise ValueError(f'User not found: {username_or_id}')
+        load_cache()
+        return ret > 0
     # Otherwise, treat as username, dbc.delete() will return
     # the number of deleted documents
     ret = dbc.delete(USER_COLLECTION, {USERNAME: username_or_id})
@@ -179,22 +174,19 @@ def update(username_or_id: str, update_dict: dict) -> dict:
             password_bytes, bcrypt.gensalt()
         ).decode('utf-8')
     # by ObjectId
-    if len(username_or_id) == 24:
-        try:
-            obj_id = ObjectId(username_or_id)
-            result = dbc.update(
-                USER_COLLECTION, {dbc.MONGO_ID: obj_id}, allowed
-            )
-            if result.matched_count < 1:
-                raise ValueError(f'User not found: {username_or_id}')
-            load_cache()
-            updated = dbc.read_one(USER_COLLECTION, {dbc.MONGO_ID: obj_id})
-            if updated:
-                updated.pop(PASSWORD, None)
-                return updated
-            return {}
-        except Exception:
-            pass
+    if ObjectId.is_valid(username_or_id):
+        obj_id = ObjectId(username_or_id)
+        result = dbc.update(
+            USER_COLLECTION, {dbc.MONGO_ID: obj_id}, allowed
+        )
+        if result.matched_count < 1:
+            raise ValueError(f'User not found: {username_or_id}')
+        load_cache()
+        updated = dbc.read_one(USER_COLLECTION, {dbc.MONGO_ID: obj_id})
+        if updated:
+            updated.pop(PASSWORD, None)
+            return updated
+        return {}
     # By username
     if username_or_id not in cache:
         raise ValueError(f'User not found: {username_or_id}')
