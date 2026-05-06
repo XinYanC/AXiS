@@ -53,12 +53,14 @@ CREATE = 'create'
 READ = 'read'
 UPDATE = 'update'
 DELETE = 'delete'
+UPLOAD_IMAGE = 'upload-image'
 USER_LIST = 'user_list'
 CHECKS = 'checks'
 LOGIN = 'login'
 
 # Features:
 PEOPLE = 'people'
+LISTINGS = 'listings'
 
 security_recs = None
 # These will come from the DB soon:
@@ -70,6 +72,20 @@ temp_recs = {
                 LOGIN: True,
             },
         },
+        # Self-service: any authenticated user; the endpoint enforces
+        # caller == target via an ownership check.
+        UPDATE: {
+            CHECKS: {LOGIN: True},
+        },
+        DELETE: {
+            CHECKS: {LOGIN: True},
+        },
+    },
+    LISTINGS: {
+        CREATE: {CHECKS: {LOGIN: True}},
+        UPDATE: {CHECKS: {LOGIN: True}},
+        DELETE: {CHECKS: {LOGIN: True}},
+        UPLOAD_IMAGE: {CHECKS: {LOGIN: True}},
     },
 }
 

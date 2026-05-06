@@ -295,6 +295,21 @@ def search_listings_by_title(search_term: str) -> dict:
 
 
 @needs_cache
+def get_owner(listing_id: str):
+    """Return the owner email for a listing, or None if not found."""
+    if not isinstance(listing_id, str) or not listing_id:
+        return None
+    listing = cache.get(listing_id)
+    if listing is None and ObjectId.is_valid(listing_id):
+        listing = dbc.read_one(
+            LISTING_COLLECTION, {dbc.MONGO_ID: ObjectId(listing_id)}
+        )
+    if not listing:
+        return None
+    return listing.get(OWNER)
+
+
+@needs_cache
 def search_listings_by_owner(owner: str) -> dict:
     """
     Return all listings that belong to a specific owner/username.

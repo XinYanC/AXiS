@@ -70,6 +70,104 @@ def _basic_auth_user():
     return userqry.authenticate(auth.username, auth.password)
 
 
+def require_auth(feature, op, owner_resolver=None):
+    """
+    Gate an endpoint via HTTP Basic Auth + security.is_operation_allowed,
+    with an optional resource-ownership check.
+
+    `owner_resolver(current_user)` is called after the ACL passes. It must
+    return True to allow the call, False to respond 403. The wrapped
+    endpoint can read `request.current_user` for the authenticated caller.
+    """
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            auth_user = _basic_auth_user()
+            auth_valid = auth_user is not None
+            authed_email = (
+                (auth_user.get('email') or '').strip() or None
+                if auth_user
+                else None
+            )
+            result, err_msg = sec.is_operation_allowed(
+                feature, op,
+                authed_user_email=authed_email,
+                auth_valid=auth_valid,
+            )
+            if result == 'unauthorized':
+                return {ERROR: err_msg}, 401
+            if result == 'forbidden':
+                return {ERROR: err_msg}, 403
+            request.current_user = auth_user
+            if owner_resolver is not None and not owner_resolver(auth_user):
+                return {ERROR: 'You do not own this resource.'}, 403
+            return fn(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def _authed_email():
+    """Lowercased email of the current authenticated caller, or ''."""
+    user = getattr(request, 'current_user', None) or {}
+    return (user.get('email') or '').strip().lower()
+
+
+def _authed_username():
+    """Username of the current authenticated caller, or ''."""
+    user = getattr(request, 'current_user', None) or {}
+    return (user.get('username') or '').strip()
+
+
+def _user_self_check(_current_user):
+    """
+    Owner resolver for /users/{update,delete}: caller must match the
+    target user identified by ?username=<username_or_id>.
+
+    If the target arg is missing or the target user does not exist, the
+    check passes here so the endpoint can produce its own 400/404; we
+    only block on a confirmed identity mismatch.
+    """
+    target = (request.args.get('username') or '').strip()
+    if not target:
+        return True
+    if target == _authed_username():
+        return True
+    target_user = userqry.get_user(target)
+    if not target_user:
+        return True
+    target_email = (target_user.get('email') or '').strip().lower()
+    return bool(target_email) and target_email == _authed_email()
+
+
+def _listing_self_check(_current_user):
+    """
+    Owner resolver for /listings/{update,delete}: caller's email must
+    match the existing listing's `owner` field. Missing id or unknown
+    listing defers to the endpoint's own 400/404 handling.
+    """
+    listing_id = (request.args.get('id') or '').strip()
+    if not listing_id:
+        return True
+    owner = listingqry.get_owner(listing_id)
+    if not owner:
+        return True
+    return owner.strip().lower() == _authed_email()
+
+
+def _listing_create_check(_current_user):
+    """
+    Owner resolver for /listings/create: the body's `owner` must equal
+    the caller's email (stops users from creating listings as someone
+    else). Missing body or missing owner field defers to the endpoint's
+    own 400 validation.
+    """
+    body = request.get_json(silent=True) or {}
+    body_owner = (body.get('owner') or '').strip().lower()
+    if not body_owner:
+        return True
+    return body_owner == _authed_email()
+
+
 def handle_endpoint_errors(value_error_status=400):
     def decorator(fn):
         @wraps(fn)
@@ -673,6 +771,7 @@ class UsersCreate(Resource):
     """
     @api.expect(user_model)
     @handle_endpoint_errors()
+    @require_auth(sec.PEOPLE, sec.CREATE)
     def post(self):
         """
         Create a new user.
@@ -694,23 +793,6 @@ class UsersCreate(Resource):
         user_data = request.json
         if not user_data:
             return {ERROR: 'Request body must contain JSON data'}, 400
-        auth_user = _basic_auth_user()
-        auth_valid = auth_user is not None
-        authed_email = (
-            (auth_user.get('email') or '').strip() or None
-            if auth_user
-            else None
-        )
-        result, err_msg = sec.is_operation_allowed(
-            sec.PEOPLE,
-            sec.CREATE,
-            authed_user_email=authed_email,
-            auth_valid=auth_valid,
-        )
-        if result == 'unauthorized':
-            return {ERROR: err_msg}, 401
-        if result == 'forbidden':
-            return {ERROR: err_msg}, 403
         # Store original data before create modifies it
         original_data = dict(user_data)
         # Don't return password in response
@@ -732,6 +814,7 @@ class UsersUpdate(Resource):
     @api.param('username', 'Username or MongoDB ObjectId', required=True)
     @api.expect(user_model)
     @handle_endpoint_errors()
+    @require_auth(sec.PEOPLE, sec.UPDATE, owner_resolver=_user_self_check)
     def put(self):
         """
         Update a user by username or ObjectId.
@@ -758,6 +841,7 @@ class UsersDelete(Resource):
     """
     @api.param('username', 'Username or MongoDB ObjectId', required=True)
     @handle_endpoint_errors(404)
+    @require_auth(sec.PEOPLE, sec.DELETE, owner_resolver=_user_self_check)
     def delete(self):
         """
         Delete a user by username or MongoDB ObjectId.
@@ -867,6 +951,7 @@ class ListingsUploadImage(Resource):
     @api.expect(upload_image_parser)
     @api.doc(consumes=['multipart/form-data'])
     @handle_endpoint_errors()
+    @require_auth(sec.LISTINGS, sec.UPLOAD_IMAGE)
     def post(self):
         """
         Upload a single image file to Cloudinary and receive its URL.
@@ -890,11 +975,15 @@ class ListingsCreate(Resource):
     """
     @api.expect(listing_model)
     @handle_endpoint_errors()
+    @require_auth(
+        sec.LISTINGS, sec.CREATE, owner_resolver=_listing_create_check,
+    )
     def post(self):
         """
         Create a new listing.
         Required JSON body: title, description, transaction_type, owner,
         city, state, country. Optional: images (list), price (number).
+        The `owner` field must equal the authenticated caller's email.
         """
         listing_data = request.json
         if not listing_data:
@@ -916,11 +1005,15 @@ class ListingsUpdate(Resource):
     @api.param('id', 'Listing MongoDB _id', required=True)
     @api.expect(listing_model)
     @handle_endpoint_errors()
+    @require_auth(
+        sec.LISTINGS, sec.UPDATE, owner_resolver=_listing_self_check,
+    )
     def put(self):
         """
         Update a listing by its ID.
         Query param: 'id'. Body: any subset of title, description,
         transaction_type, city, state, country, price, num_likes.
+        Caller must be the listing's `owner`.
         """
         listing_id = request.args.get('id')
         if not listing_id:
@@ -942,10 +1035,14 @@ class ListingsDelete(Resource):
     """
     @api.param('id', 'Listing MongoDB _id', required=True)
     @handle_endpoint_errors(404)
+    @require_auth(
+        sec.LISTINGS, sec.DELETE, owner_resolver=_listing_self_check,
+    )
     def delete(self):
         """
         Delete a listing by its ID.
         Query param: 'id' (MongoDB _id)
+        Caller must be the listing's `owner`.
         """
         listing_id = request.args.get('id')
         if not listing_id:

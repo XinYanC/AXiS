@@ -539,8 +539,12 @@ def test_user_model_created_at_is_readonly():
     assert schema.get('readOnly') is True
 
 
+_TESTUSER_AUTH = {'username': 'testuser', 'email': 'testuser@example.edu'}
+
+
+@patch('server.endpoints._basic_auth_user', return_value=_TESTUSER_AUTH)
 @patch('server.endpoints.userqry.update')
-def test_users_update_success(mock_update):
+def test_users_update_success(mock_update, _mock_auth):
     """Test PUT /users/update with valid username and body."""
     mock_updated = {
         'username': 'testuser',
@@ -562,7 +566,8 @@ def test_users_update_success(mock_update):
     mock_update.assert_called_once_with('testuser', body)
 
 
-def test_users_update_missing_username():
+@patch('server.endpoints._basic_auth_user', return_value=_TESTUSER_AUTH)
+def test_users_update_missing_username(_mock_auth):
     """Test PUT /users/update without username param returns 400."""
     resp = TEST_CLIENT.put(
         f"{ep.USERS_EPS}/{ep.UPDATE}",
@@ -573,8 +578,42 @@ def test_users_update_missing_username():
     assert ep.ERROR in resp_json
 
 
+@patch('server.endpoints._basic_auth_user', return_value=None)
+@patch('server.endpoints.userqry.update')
+def test_users_update_unauthenticated(mock_update, _mock_auth):
+    """Test PUT /users/update without Basic Auth returns 401."""
+    resp = TEST_CLIENT.put(
+        f"{ep.USERS_EPS}/{ep.UPDATE}?username=testuser",
+        json={'name': 'X'},
+    )
+    assert resp.status_code == UNAUTHORIZED
+    assert ep.ERROR in resp.get_json()
+    mock_update.assert_not_called()
+
+
+@patch(
+    'server.endpoints._basic_auth_user',
+    return_value={'username': 'attacker', 'email': 'attacker@nyu.edu'},
+)
+@patch('server.endpoints.userqry.update')
+@patch(
+    'server.endpoints.userqry.get_user',
+    return_value={'username': 'victim', 'email': 'victim@nyu.edu'},
+)
+def test_users_update_wrong_owner(_mock_get, mock_update, _mock_auth):
+    """Test PUT /users/update for another user returns 403."""
+    resp = TEST_CLIENT.put(
+        f"{ep.USERS_EPS}/{ep.UPDATE}?username=victim",
+        json={'name': 'X'},
+    )
+    assert resp.status_code == 403
+    assert ep.ERROR in resp.get_json()
+    mock_update.assert_not_called()
+
+
+@patch('server.endpoints._basic_auth_user', return_value=_TESTUSER_AUTH)
 @patch('server.endpoints.userqry.delete')
-def test_users_delete_by_username(mock_delete):
+def test_users_delete_by_username(mock_delete, _mock_auth):
     """Test the /users/delete endpoint."""
     # Arrange
     mock_delete.return_value = True
@@ -591,8 +630,18 @@ def test_users_delete_by_username(mock_delete):
     mock_delete.assert_called_once_with("testuser")
 
 
+@patch(
+    'server.endpoints._basic_auth_user',
+    return_value=_TESTUSER_AUTH,
+)
+@patch(
+    'server.endpoints.userqry.get_user',
+    return_value={
+        'username': 'testuser', 'email': 'testuser@example.edu',
+    },
+)
 @patch('server.endpoints.userqry.delete')
-def test_users_delete_by_id(mock_delete):
+def test_users_delete_by_id(mock_delete, _mock_get, _mock_auth):
     """Test the /users/delete endpoint with ObjectId."""
     # Arrange
     mock_delete.return_value = True
@@ -610,8 +659,9 @@ def test_users_delete_by_id(mock_delete):
     mock_delete.assert_called_once_with(object_id)
 
 
+@patch('server.endpoints._basic_auth_user', return_value=_TESTUSER_AUTH)
 @patch('server.endpoints.userqry.delete')
-def test_users_delete_not_found(mock_delete):
+def test_users_delete_not_found(mock_delete, _mock_auth):
     """Test the /users/delete endpoint when user not found."""
     # Arrange
     mock_delete.side_effect = ValueError('User not found: testuser')
@@ -625,6 +675,36 @@ def test_users_delete_not_found(mock_delete):
     # Assert
     assert resp.status_code == NOT_FOUND
     assert ep.ERROR in resp_json
+
+
+@patch('server.endpoints._basic_auth_user', return_value=None)
+@patch('server.endpoints.userqry.delete')
+def test_users_delete_unauthenticated(mock_delete, _mock_auth):
+    """Test DELETE /users/delete without auth returns 401."""
+    resp = TEST_CLIENT.delete(
+        f"{ep.USERS_EPS}/{ep.DELETE}?username=testuser"
+    )
+    assert resp.status_code == UNAUTHORIZED
+    assert ep.ERROR in resp.get_json()
+    mock_delete.assert_not_called()
+
+
+@patch(
+    'server.endpoints._basic_auth_user',
+    return_value={'username': 'attacker', 'email': 'attacker@nyu.edu'},
+)
+@patch('server.endpoints.userqry.delete')
+@patch(
+    'server.endpoints.userqry.get_user',
+    return_value={'username': 'victim', 'email': 'victim@nyu.edu'},
+)
+def test_users_delete_wrong_owner(_mock_get, mock_delete, _mock_auth):
+    """Test DELETE /users/delete on someone else's account returns 403."""
+    resp = TEST_CLIENT.delete(
+        f"{ep.USERS_EPS}/{ep.DELETE}?username=victim"
+    )
+    assert resp.status_code == 403
+    mock_delete.assert_not_called()
 
 
 # ==================== LISTINGS ENDPOINT TESTS ====================
@@ -711,8 +791,12 @@ def test_listings_by_user_missing_username():
     assert ep.ERROR in resp_json
 
 
+_OWNER_AUTH = {'username': 'student', 'email': 'student@nyu.edu'}
+
+
+@patch('server.endpoints._basic_auth_user', return_value=_OWNER_AUTH)
 @patch('server.endpoints.cloudinarycon.upload_image')
-def test_listings_upload_image_success(mock_upload):
+def test_listings_upload_image_success(mock_upload, _mock_auth):
     """Test POST /listings/upload-image with a valid multipart file."""
     expected_url = 'https://res.cloudinary.com/demo/image/upload/test.png'
     mock_upload.return_value = expected_url
@@ -730,7 +814,8 @@ def test_listings_upload_image_success(mock_upload):
     assert called_file.filename == 'test.png'
 
 
-def test_listings_upload_image_missing_file():
+@patch('server.endpoints._basic_auth_user', return_value=_OWNER_AUTH)
+def test_listings_upload_image_missing_file(_mock_auth):
     """Test POST /listings/upload-image without image field returns 400."""
     resp = TEST_CLIENT.post(
         f"{ep.LISTINGS_EPS}/{ep.UPLOAD_IMAGE}",
@@ -743,7 +828,8 @@ def test_listings_upload_image_missing_file():
     assert ep.ERROR in resp_json
 
 
-def test_listings_upload_image_empty_filename():
+@patch('server.endpoints._basic_auth_user', return_value=_OWNER_AUTH)
+def test_listings_upload_image_empty_filename(_mock_auth):
     """Test POST /listings/upload-image with empty filename returns 400."""
     resp = TEST_CLIENT.post(
         f"{ep.LISTINGS_EPS}/{ep.UPLOAD_IMAGE}",
@@ -756,8 +842,9 @@ def test_listings_upload_image_empty_filename():
     assert ep.ERROR in resp_json
 
 
+@patch('server.endpoints._basic_auth_user', return_value=_OWNER_AUTH)
 @patch('server.endpoints.cloudinarycon.upload_image')
-def test_listings_upload_image_cloudinary_error(mock_upload):
+def test_listings_upload_image_cloudinary_error(mock_upload, _mock_auth):
     """Test POST /listings/upload-image when Cloudinary helper fails."""
     mock_upload.side_effect = ValueError('CLOUDINARY_API_KEY not set')
 
@@ -772,8 +859,20 @@ def test_listings_upload_image_cloudinary_error(mock_upload):
     assert ep.ERROR in resp_json
 
 
+@patch('server.endpoints._basic_auth_user', return_value=None)
+def test_listings_upload_image_unauthenticated(_mock_auth):
+    """Test POST /listings/upload-image without auth returns 401."""
+    resp = TEST_CLIENT.post(
+        f"{ep.LISTINGS_EPS}/{ep.UPLOAD_IMAGE}",
+        data={'image': (BytesIO(b'abc'), 'test.png')},
+        content_type='multipart/form-data',
+    )
+    assert resp.status_code == UNAUTHORIZED
+
+
+@patch('server.endpoints._basic_auth_user', return_value=_OWNER_AUTH)
 @patch('server.endpoints.listingqry.create')
-def test_listings_create(mock_create):
+def test_listings_create(mock_create, _mock_auth):
     """Test POST /listings/create endpoint."""
     mock_create.return_value = '507f1f77bcf86cd799439011'
     listing_data = {
@@ -799,8 +898,46 @@ def test_listings_create(mock_create):
     mock_create.assert_called_once()
 
 
+@patch('server.endpoints._basic_auth_user', return_value=_OWNER_AUTH)
+@patch('server.endpoints.listingqry.create')
+def test_listings_create_owner_mismatch(mock_create, _mock_auth):
+    """POST /listings/create with another user's email as owner -> 403."""
+    listing_data = {
+        'title': 'Desk Lamp',
+        'description': 'LED lamp',
+        'transaction_type': 'sell',
+        'owner': 'someone-else@nyu.edu',
+        'city': 'New York',
+        'state': 'NY',
+        'country': 'USA',
+    }
+    resp = TEST_CLIENT.post(
+        f"{ep.LISTINGS_EPS}/{ep.CREATE}",
+        json=listing_data,
+    )
+    assert resp.status_code == 403
+    mock_create.assert_not_called()
+
+
+@patch('server.endpoints._basic_auth_user', return_value=None)
+@patch('server.endpoints.listingqry.create')
+def test_listings_create_unauthenticated(mock_create, _mock_auth):
+    """POST /listings/create without auth -> 401."""
+    resp = TEST_CLIENT.post(
+        f"{ep.LISTINGS_EPS}/{ep.CREATE}",
+        json={'title': 'X'},
+    )
+    assert resp.status_code == UNAUTHORIZED
+    mock_create.assert_not_called()
+
+
+@patch('server.endpoints._basic_auth_user', return_value=_OWNER_AUTH)
+@patch(
+    'server.endpoints.listingqry.get_owner',
+    return_value='student@nyu.edu',
+)
 @patch('server.endpoints.listingqry.update')
-def test_listings_update_success(mock_update):
+def test_listings_update_success(mock_update, _mock_owner, _mock_auth):
     """Test PUT /listings/update with valid id and body."""
     listing_id = '507f1f77bcf86cd799439011'
     mock_updated = {
@@ -823,7 +960,8 @@ def test_listings_update_success(mock_update):
     mock_update.assert_called_once_with(listing_id, body)
 
 
-def test_listings_update_missing_id():
+@patch('server.endpoints._basic_auth_user', return_value=_OWNER_AUTH)
+def test_listings_update_missing_id(_mock_auth):
     """Test PUT /listings/update without id param returns 400."""
     resp = TEST_CLIENT.put(
         f"{ep.LISTINGS_EPS}/{ep.UPDATE}",
@@ -834,8 +972,29 @@ def test_listings_update_missing_id():
     assert ep.ERROR in resp_json
 
 
+@patch('server.endpoints._basic_auth_user', return_value=_OWNER_AUTH)
+@patch(
+    'server.endpoints.listingqry.get_owner',
+    return_value='someone-else@nyu.edu',
+)
+@patch('server.endpoints.listingqry.update')
+def test_listings_update_wrong_owner(mock_update, _mock_owner, _mock_auth):
+    """PUT /listings/update on a listing owned by someone else -> 403."""
+    resp = TEST_CLIENT.put(
+        f"{ep.LISTINGS_EPS}/{ep.UPDATE}?id=507f1f77bcf86cd799439011",
+        json={'title': 'hijack'},
+    )
+    assert resp.status_code == 403
+    mock_update.assert_not_called()
+
+
+@patch('server.endpoints._basic_auth_user', return_value=_OWNER_AUTH)
+@patch(
+    'server.endpoints.listingqry.get_owner',
+    return_value='student@nyu.edu',
+)
 @patch('server.endpoints.listingqry.delete')
-def test_listings_delete_success(mock_delete):
+def test_listings_delete_success(mock_delete, _mock_owner, _mock_auth):
     """Test DELETE /listings/delete with valid id."""
     mock_delete.return_value = True
     listing_id = '507f1f77bcf86cd799439011'
@@ -851,12 +1010,28 @@ def test_listings_delete_success(mock_delete):
     mock_delete.assert_called_once_with(listing_id)
 
 
-def test_listings_delete_missing_id():
+@patch('server.endpoints._basic_auth_user', return_value=_OWNER_AUTH)
+def test_listings_delete_missing_id(_mock_auth):
     """Test DELETE /listings/delete without id param returns 400."""
     resp = TEST_CLIENT.delete(f"{ep.LISTINGS_EPS}/{ep.DELETE}")
     resp_json = resp.get_json()
     assert resp.status_code == BAD_REQUEST
     assert ep.ERROR in resp_json
+
+
+@patch('server.endpoints._basic_auth_user', return_value=_OWNER_AUTH)
+@patch(
+    'server.endpoints.listingqry.get_owner',
+    return_value='someone-else@nyu.edu',
+)
+@patch('server.endpoints.listingqry.delete')
+def test_listings_delete_wrong_owner(mock_delete, _mock_owner, _mock_auth):
+    """DELETE /listings/delete on a listing owned by someone else -> 403."""
+    resp = TEST_CLIENT.delete(
+        f"{ep.LISTINGS_EPS}/{ep.DELETE}?id=507f1f77bcf86cd799439011"
+    )
+    assert resp.status_code == 403
+    mock_delete.assert_not_called()
 
 
 # ==================== AUTH ENDPOINT TESTS ====================

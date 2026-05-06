@@ -222,6 +222,20 @@ def read() -> dict:
 
 
 @needs_cache
+def get_user(username_or_id: str):
+    """Return user dict for a username or ObjectId, or None if missing."""
+    if not isinstance(username_or_id, str) or not username_or_id:
+        return None
+    if username_or_id in cache:
+        return cache[username_or_id]
+    if ObjectId.is_valid(username_or_id):
+        return dbc.read_one(
+            USER_COLLECTION, {dbc.MONGO_ID: ObjectId(username_or_id)}
+        )
+    return None
+
+
+@needs_cache
 def find_user_by_email(email: str):
     """
     Return the user dict for the given email, or None if not found.
