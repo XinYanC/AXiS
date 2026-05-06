@@ -15,10 +15,13 @@ import security.security as sec
 import states.queries as stateqry
 import users.queries as userqry
 from functools import wraps
+import data.db_connect as dbc
 from server import dropdown_form
 from flask import Flask, request
 from flask_restx import Resource, Api, fields  # Namespace
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from werkzeug.datastructures import FileStorage
 
 
@@ -44,6 +47,18 @@ CORS(
     ],
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 )
+
+# In-memory storage is fine for a single PythonAnywhere worker; swap to
+# Redis if/when we run multiple workers. We always initialize storage so
+# tests can flip enforcement on/off and call reset() — `enabled` is then
+# toggled per AXIS_RATELIMIT_ENABLED so the test suite isn't gated on
+# a real budget by default.
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    storage_uri='memory://',
+)
+limiter.enabled = os.environ.get('AXIS_RATELIMIT_ENABLED', '0') == '1'
 
 # Swagger UI: "Authorize" for /dev/logs (matches AXIS_DEV_LOG_TOKEN on server).
 _DEV_LOG_SWAGGER_AUTH = {
@@ -175,11 +190,18 @@ def handle_endpoint_errors(value_error_status=400):
             try:
                 return fn(*args, **kwargs)
             except ValueError as e:
+                # Application-level invalid-input errors carry a safe,
+                # caller-facing message — pass through.
                 return {ERROR: str(e)}, value_error_status
             except ConnectionError as e:
+                # Same: the message we raise is sanitized by callers.
                 return {ERROR: str(e)}, 500
-            except Exception as e:
-                return {ERROR: str(e)}, 500
+            except Exception:
+                # Anything else may carry internal details (Mongo, bcrypt,
+                # third-party SDKs). Log server-side; never echo to client.
+                app.logger.exception('Unhandled error in endpoint %s',
+                                     fn.__qualname__)
+                return {ERROR: 'Internal server error'}, 500
         return wrapper
     return decorator
 
@@ -203,6 +225,10 @@ ENDPOINT_RESP = 'Available endpoints'
 
 HELLO_EP = '/hello'
 HELLO_RESP = 'hello'
+
+HEALTH_EP = '/health'
+HEALTH_STATUS = 'status'
+HEALTH_CHECKS = 'checks'
 
 CITIES_EPS = '/cities'
 CITY_RESP = 'Cities'
@@ -1106,6 +1132,8 @@ class AuthLogin(Resource):
     """
     Authenticate user by email and password.
     """
+    decorators = [limiter.limit('5 per 15 minutes')]
+
     @api.expect(login_model)
     @handle_endpoint_errors()
     def post(self):
@@ -1518,6 +1546,44 @@ class HelloWorld(Resource):
         A trivial endpoint to see if the server is running.
         """
         return {HELLO_RESP: 'world'}
+
+
+def _check_mongo():
+    try:
+        dbc.ping()
+    except Exception as exc:
+        return False, type(exc).__name__
+    return True, None
+
+
+def _check_cloudinary():
+    try:
+        cloudinarycon.ping()
+    except Exception as exc:
+        return False, type(exc).__name__
+    return True, None
+
+
+@api.route(HEALTH_EP)
+class Health(Resource):
+    """
+    Liveness + readiness check. Pings each external dependency and
+    returns 200 if all are healthy, 503 with the failing checks named
+    otherwise. Suitable for load-balancer / uptime monitors.
+    """
+    def get(self):
+        mongo_ok, mongo_err = _check_mongo()
+        cloud_ok, cloud_err = _check_cloudinary()
+        checks = {
+            'mongo': 'ok' if mongo_ok else f'error: {mongo_err}',
+            'cloudinary': 'ok' if cloud_ok else f'error: {cloud_err}',
+        }
+        all_ok = mongo_ok and cloud_ok
+        body = {
+            HEALTH_STATUS: 'ok' if all_ok else 'degraded',
+            HEALTH_CHECKS: checks,
+        }
+        return body, 200 if all_ok else 503
 
 
 @api.route(ENDPOINT_EP)

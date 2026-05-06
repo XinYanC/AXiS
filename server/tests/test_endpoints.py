@@ -24,6 +24,69 @@ def test_hello():
     assert ep.HELLO_RESP in resp_json
 
 
+# ==================== HEALTH ENDPOINT TESTS ====================
+
+@patch('server.endpoints._check_cloudinary', return_value=(True, None))
+@patch('server.endpoints._check_mongo', return_value=(True, None))
+def test_health_all_ok(_mock_mongo, _mock_cloud):
+    resp = TEST_CLIENT.get(ep.HEALTH_EP)
+    assert resp.status_code == OK
+    body = resp.get_json()
+    assert body[ep.HEALTH_STATUS] == 'ok'
+    assert body[ep.HEALTH_CHECKS]['mongo'] == 'ok'
+    assert body[ep.HEALTH_CHECKS]['cloudinary'] == 'ok'
+
+
+@patch(
+    'server.endpoints._check_cloudinary', return_value=(True, None),
+)
+@patch(
+    'server.endpoints._check_mongo',
+    return_value=(False, 'ServerSelectionTimeoutError'),
+)
+def test_health_mongo_down(_mock_mongo, _mock_cloud):
+    resp = TEST_CLIENT.get(ep.HEALTH_EP)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+    body = resp.get_json()
+    assert body[ep.HEALTH_STATUS] == 'degraded'
+    assert 'ServerSelectionTimeoutError' in body[ep.HEALTH_CHECKS]['mongo']
+    assert body[ep.HEALTH_CHECKS]['cloudinary'] == 'ok'
+
+
+@patch(
+    'server.endpoints._check_cloudinary',
+    return_value=(False, 'AuthorizationRequired'),
+)
+@patch('server.endpoints._check_mongo', return_value=(True, None))
+def test_health_cloudinary_down(_mock_mongo, _mock_cloud):
+    resp = TEST_CLIENT.get(ep.HEALTH_EP)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+    body = resp.get_json()
+    assert body[ep.HEALTH_STATUS] == 'degraded'
+    assert (
+        'AuthorizationRequired'
+        in body[ep.HEALTH_CHECKS]['cloudinary']
+    )
+
+
+# ==================== ERROR-HANDLING SAFETY TESTS ==================
+
+@patch('server.endpoints.userqry.num_users')
+def test_handle_endpoint_errors_does_not_leak_internals(mock_num):
+    """Unhandled exceptions return a generic 500, not str(e)."""
+    secret = 'mongo://user:hunter2@geodb.f4tdnzf.mongodb.net'
+    mock_num.side_effect = RuntimeError(secret)
+
+    resp = TEST_CLIENT.get(f"{ep.USERS_EPS}/{ep.COUNT}")
+
+    assert resp.status_code == 500
+    body = resp.get_json()
+    assert ep.ERROR in body
+    assert body[ep.ERROR] == 'Internal server error'
+    assert 'hunter2' not in body[ep.ERROR]
+    assert 'mongo' not in body[ep.ERROR].lower()
+
+
 # ==================== CITIES ENDPOINT TESTS ====================
 
 @patch('server.endpoints.cityqry.read')
@@ -1127,6 +1190,31 @@ def test_auth_login_missing_password():
     assert resp.status_code == BAD_REQUEST
     assert ep.ERROR in resp_json
     assert 'Password' in resp_json[ep.ERROR]
+
+
+@patch('server.endpoints.userqry.authenticate', return_value=None)
+def test_auth_login_rate_limited(_mock_auth):
+    """The 6th login attempt within the window returns 429."""
+    ep.limiter.enabled = True
+    try:
+        ep.limiter.reset()
+        for i in range(5):
+            resp = TEST_CLIENT.post(
+                ep.AUTH_LOGIN_EP,
+                json={'email': 'johndoe@example.edu', 'password': 'x'},
+            )
+            assert resp.status_code == UNAUTHORIZED, (
+                f'attempt {i + 1} expected 401 got {resp.status_code}'
+            )
+        # The 6th call should be rate-limited.
+        resp = TEST_CLIENT.post(
+            ep.AUTH_LOGIN_EP,
+            json={'email': 'johndoe@example.edu', 'password': 'x'},
+        )
+        assert resp.status_code == 429
+    finally:
+        ep.limiter.enabled = False
+        ep.limiter.reset()
 
 
 # ==================== SYSTEM DROPDOWN ENDPOINT TESTS ====================

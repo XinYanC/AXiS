@@ -45,6 +45,12 @@ def needs_db(fn):
     return wrapper
 
 
+@needs_db
+def ping() -> None:
+    """Lightweight liveness check against MongoDB. Raises on failure."""
+    client.admin.command('ping')
+
+
 def connect_db():
     """
     This provides a uniform way to connect to the DB across all uses.

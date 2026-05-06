@@ -12,6 +12,7 @@ Required environment variables:
 import os
 
 import cloudinary
+import cloudinary.api
 import cloudinary.uploader
 
 CLOUDINARY_FOLDER = 'axis_listings'
@@ -40,6 +41,14 @@ def _configure():
         api_secret=API_SECRET,
         secure=True,
     )
+
+
+def ping() -> None:
+    """
+    Verify Cloudinary credentials and reachability. Raises on failure.
+    """
+    _configure()
+    cloudinary.api.ping()
 
 
 def upload_image(file) -> str:
