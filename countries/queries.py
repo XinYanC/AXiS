@@ -76,11 +76,13 @@ def create(country, reload=True):
             not country['code'].strip()):
         raise ValueError("Country must have a non-empty 'code'.")
 
-    code = country.get(CODE)
+    code = str(country.get(CODE) or '').strip().upper()
     if code in cache:
         raise ValueError(f'Duplicate key: {code=}')
 
-    rec_id = dbc.create(COUNTRY_COLLECTION, country)
+    doc = dict(country)
+    doc[CODE] = code
+    rec_id = dbc.create(COUNTRY_COLLECTION, doc)
     if reload:
         load_cache()
     return rec_id
@@ -98,15 +100,17 @@ def delete(name_or_id: str, code: str = None) -> bool:
         if ret < 1:
             raise ValueError(f'Country not found: {name_or_id}')
     else:
-        # Otherwise, treat as name and code and delete from database
-        ret = dbc.delete(
-            COUNTRY_COLLECTION, {NAME: name_or_id, CODE: code}
+        # Match load_cache/create: uppercase code keys; NAME matches the doc.
+        nm = str(name_or_id).strip()
+        normalized_code = str(code or '').strip().upper()
+        ret = dbc.delete_many(
+            COUNTRY_COLLECTION, {NAME: nm, CODE: normalized_code}
         )
         if ret < 1:
-            raise ValueError(f'Country not found: {name_or_id}, {code}')
+            raise ValueError(f'Country not found: {nm}, {normalized_code}')
 
     load_cache()
-    return ret > 0
+    return bool(ret > 0)
 
 
 @needs_cache

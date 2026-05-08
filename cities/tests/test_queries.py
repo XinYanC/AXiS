@@ -1,16 +1,19 @@
 # To run test: PYTHONPATH=$(pwd) pytest -v cities/tests/test_queries.py
 
+from copy import deepcopy
 from unittest.mock import patch
 
 import pytest
+from bson import ObjectId
 
 import cities.queries as qry
 
-from copy import deepcopy
 
 def safe_delete(city):
+    """Remove a row matching the triple used for duplicate detection; tolerate missing."""
+    country = city.get(qry.COUNTRY_CODE, qry.SAMPLE_CITY[qry.COUNTRY_CODE])
     try:
-        qry.delete(city[qry.NAME], city[qry.STATE_CODE])
+        qry.delete(city[qry.NAME], city[qry.STATE_CODE], country)
     except ValueError:
         pass
 
@@ -66,7 +69,9 @@ def sample_cities():
     # Now create the cities
     for city in cities_to_create:
         qry.create(city)
-        created_ids.append((city[qry.NAME], city[qry.STATE_CODE]))
+        created_ids.append(
+            (city[qry.NAME], city[qry.STATE_CODE], city[qry.COUNTRY_CODE])
+        )
     keys = frozenset(
         f"{c[qry.NAME]},{c[qry.STATE_CODE]},"
         f"{(str(c.get(qry.COUNTRY_CODE) or 'USA').strip().upper() or 'USA')}"
@@ -76,8 +81,14 @@ def sample_cities():
         yield {'cities': cities_to_create, 'keys': keys}
     finally:
         # Clean up created cities
-        for name, state_code in created_ids:
-            safe_delete({'name': name, 'state_code': state_code})
+        for name, state_code, country_code in created_ids:
+            safe_delete(
+                {
+                    'name': name,
+                    'state_code': state_code,
+                    'country_code': country_code,
+                }
+            )
 
 
 def test_search_cities_by_name_with_fixture(sample_cities):
@@ -170,27 +181,38 @@ def test_create_invalid_inputs(city_data, match):
 
 def test_delete(temp_city_unique):
     rec_id, rec = temp_city_unique
-    ret = qry.delete(rec[qry.NAME], rec[qry.STATE_CODE])
+    ret = qry.delete(
+        rec[qry.NAME], rec[qry.STATE_CODE], rec[qry.COUNTRY_CODE]
+    )
     assert ret == 1
 
 
 def test_delete_not_there():
     with pytest.raises(ValueError):
         qry.delete('some city name that is not there, not a state')
+    with patch('cities.queries.dbc.delete_many', return_value=0):
+        with pytest.raises(ValueError, match='City not found'):
+            qry.delete(
+                'no such city',
+                'XX',
+                qry.SAMPLE_CITY[qry.COUNTRY_CODE],
+            )
 
 
 def test_delete_by_name_success_and_not_found():
-    """Test delete when passed a name and state_code: success and not-found cases."""
-    # Success: dbc.delete returns >=1 -> delete() should return True
-    with patch('cities.queries.dbc.delete', return_value=1) as fake_del:
-        assert qry.delete('Any City', 'AC') is True
+    """Test delete when passed name, state_code, and country_code."""
+    # Success: dbc.delete_many removes >= 1 doc -> delete() should return True
+    with patch('cities.queries.dbc.delete_many', return_value=1) as fake_del:
+        assert (
+            qry.delete('Any City', 'AC', qry.SAMPLE_CITY[qry.COUNTRY_CODE]) is True
+        )
         fake_del.assert_called()
 
-    # Not found: dbc.delete returns 0 -> delete() should raise ValueError
-    with patch('cities.queries.dbc.delete', return_value=0):
+    # Not found: deleted_count == 0 -> delete() should raise ValueError
+    with patch('cities.queries.dbc.delete_many', return_value=0):
         import pytest as _pytest
         with _pytest.raises(ValueError, match='City not found'):
-            qry.delete('Any City', 'AC')
+            qry.delete('Any City', 'AC', qry.SAMPLE_CITY[qry.COUNTRY_CODE])
 
 
 def test_read(temp_city_unique):

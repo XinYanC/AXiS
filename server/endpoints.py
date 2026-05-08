@@ -482,20 +482,26 @@ class CitiesDelete(Resource):
     """
     @api.param('name', 'City name', required=True)
     @api.param('state_code', 'State code (e.g., "NY", "CA")', required=True)
+    @api.param(
+        'country_code',
+        'Country code (e.g., "USA"). Defaults to USA.',
+        required=False,
+    )
     @handle_endpoint_errors(404)
     def delete(self):
         """
-        Delete a city by name and state_code.
-        Query params: 'name' and 'state_code'
+        Delete a city by name, state_code, and optionally country_code.
+        Query params: 'name' and 'state_code'; optional 'country_code'.
         """
         name = request.args.get('name')
         state_code = request.args.get('state_code')
+        country_code = request.args.get('country_code')
         if not name or not state_code:
             return {
                 ERROR: 'Query parameters "name" and '
                        '"state_code" are required'
             }, 400
-        cityqry.delete(name, state_code)
+        cityqry.delete(name, state_code, country_code)
         return {
             MESSAGE: f'City "{name}, {state_code}" deleted successfully',
         }

@@ -68,21 +68,46 @@ def num_states() -> int:
     return len(cache)
 
 
+def _mongo_filter_delete_state(code: str, cc: str) -> dict:
+    """
+    Match load_cache keys: CODE + COUNTRY_CODE.
+    Default country allows for legacy docs missing country_code.
+    """
+    filt = {CODE: code}
+    if cc == DEFAULT_COUNTRY:
+        filt['$or'] = [
+            {COUNTRY_CODE: cc},
+            {COUNTRY_CODE: {'$exists': False}},
+            {COUNTRY_CODE: None},
+            {COUNTRY_CODE: ''},
+        ]
+    else:
+        filt[COUNTRY_CODE] = cc
+    return filt
+
+
 @needs_cache
 def create(flds: dict, reload=True) -> str:
     if not isinstance(flds, dict):
         raise ValueError(f'Bad type for {type(flds)=}')
-    code = flds.get(CODE)
-    country_code = flds.get(COUNTRY_CODE)
+    code = str(flds.get(CODE) or '').strip().upper()
+    country_code_raw = flds.get(COUNTRY_CODE)
+    country_code = str(country_code_raw or '').strip().upper()
     if not flds.get(NAME):
         raise ValueError(f'Bad value for {flds.get(NAME)=}')
     if not code:
-        raise ValueError(f'Bad value for {code=}')
+        raise ValueError(f'Bad value for code after normalization: {code!r}')
     if not country_code:
-        raise ValueError(f'Bad value for {country_code=}')
-    if f'{code},{country_code}' in cache:
+        raise ValueError(
+            f'Bad value for country_code after normalization: {country_code!r}'
+        )
+    cache_key = f'{code},{country_code}'
+    if cache_key in cache:
         raise ValueError(f'Duplicate key: {code=}; {country_code=}')
-    new_id = dbc.create(STATE_COLLECTION, flds)
+    doc = dict(flds)
+    doc[CODE] = code
+    doc[COUNTRY_CODE] = country_code
+    new_id = dbc.create(STATE_COLLECTION, doc)
     print(f'{new_id=}')
     if reload:
         load_cache()
@@ -90,11 +115,18 @@ def create(flds: dict, reload=True) -> str:
 
 
 def delete(code: str, cntry_code: str) -> bool:
-    ret = dbc.delete(STATE_COLLECTION, {CODE: code, COUNTRY_CODE: cntry_code})
+    code = str(code or '').strip().upper()
+    cc = (
+        str(cntry_code or '').strip().upper()
+        if cntry_code is not None and str(cntry_code).strip()
+        else DEFAULT_COUNTRY
+    )
+    filt = _mongo_filter_delete_state(code, cc)
+    ret = dbc.delete_many(STATE_COLLECTION, filt)
     if ret < 1:
-        raise ValueError(f'State not found: {code}, {cntry_code}')
+        raise ValueError(f'State not found: {code}, {cc}')
     load_cache()
-    return ret
+    return bool(ret > 0)
 
 
 @needs_cache

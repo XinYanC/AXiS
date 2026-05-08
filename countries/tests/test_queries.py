@@ -162,13 +162,13 @@ def test_delete_not_there():
 
 def test_delete_by_name_success_and_not_found():
     """Test delete when passed a name and code: success and not-found cases."""
-    # Success: dbc.delete returns >=1 -> delete() should return True
-    with patch('countries.queries.dbc.delete', return_value=1) as fake_del:
+    # Success: delete_many removes >= 1 doc -> delete() should return True
+    with patch('countries.queries.dbc.delete_many', return_value=1) as fake_del:
         assert qry.delete('Any Country', 'AC') is True
         fake_del.assert_called()
 
-    # Not found: dbc.delete returns 0 -> delete() should raise ValueError
-    with patch('countries.queries.dbc.delete', return_value=0):
+    # Not found: deleted_count == 0 -> delete() should raise ValueError
+    with patch('countries.queries.dbc.delete_many', return_value=0):
         import pytest as _pytest
         with _pytest.raises(ValueError, match='Country not found'):
             qry.delete('Any Country', 'AC')

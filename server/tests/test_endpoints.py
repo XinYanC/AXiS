@@ -223,14 +223,14 @@ def test_cities_delete(mock_delete):
     # Assert
     assert resp.status_code == OK
     assert ep.MESSAGE in resp_json
-    mock_delete.assert_called_once_with("Test City", "CA")
+    mock_delete.assert_called_once_with("Test City", "CA", None)
 
 
 @patch('server.endpoints.cityqry.delete')
 def test_cities_delete_not_found(mock_delete):
     """Test the /cities/delete endpoint when city not found."""
     # Arrange
-    mock_delete.side_effect = ValueError('City not found: Test, CA')
+    mock_delete.side_effect = ValueError('City not found: Test, CA, USA')
 
     # Act
     resp = TEST_CLIENT.delete(

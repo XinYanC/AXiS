@@ -61,9 +61,12 @@ def load_cache():
     cache = {}
     users = dbc.read(USER_COLLECTION)
     for user in users:
-        # Use username as the key
-        key = user[USERNAME]
-        cache[key] = user
+        username = str(user.get(USERNAME) or '').strip()
+        if not username:
+            continue
+        canonical = dict(user)
+        canonical[USERNAME] = username
+        cache[username] = canonical
 
 
 def clear_cache():
@@ -83,7 +86,9 @@ def create(user, reload=True):
         raise ValueError("User must be a dictionary.")
     if USERNAME not in user or not user[USERNAME]:
         raise ValueError("User must have a non-empty 'username'.")
-    username = user.get(USERNAME)
+    username = str(user.get(USERNAME) or '').strip()
+    if not username:
+        raise ValueError("User must have a non-empty 'username'.")
     if username in cache:
         raise ValueError(f'Duplicate key: {username=}')
     # Validate and normalize edu email if provided.
@@ -108,7 +113,9 @@ def create(user, reload=True):
 
     user[CREATED_AT] = datetime.now(timezone.utc).isoformat()
 
-    rec_id = dbc.create(USER_COLLECTION, user)
+    insert_doc = dict(user)
+    insert_doc[USERNAME] = username
+    rec_id = dbc.create(USER_COLLECTION, insert_doc)
     if reload:
         load_cache()
     return rec_id
@@ -125,7 +132,8 @@ def delete(username_or_id: str) -> bool:
         return ret > 0
     # Otherwise, treat as username, dbc.delete() will return
     # the number of deleted documents
-    ret = dbc.delete(USER_COLLECTION, {USERNAME: username_or_id})
+    lookup = str(username_or_id).strip()
+    ret = dbc.delete(USER_COLLECTION, {USERNAME: lookup})
     if ret < 1:
         raise ValueError(f'User not found: {username_or_id}')
     load_cache()
@@ -187,16 +195,18 @@ def update(username_or_id: str, update_dict: dict) -> dict:
             updated.pop(PASSWORD, None)
             return updated
         return {}
-    # By username
-    if username_or_id not in cache:
+
+    # By username (strip must match load_cache / create keys)
+    un = str(username_or_id).strip()
+    if un not in cache:
         raise ValueError(f'User not found: {username_or_id}')
     result = dbc.update(
-        USER_COLLECTION, {USERNAME: username_or_id}, allowed
+        USER_COLLECTION, {USERNAME: un}, allowed
     )
     if result.matched_count < 1:
         raise ValueError(f'User not found: {username_or_id}')
     load_cache()
-    updated = cache.get(username_or_id)
+    updated = cache.get(un)
     if updated:
         out = dict(updated)
         out.pop(PASSWORD, None)

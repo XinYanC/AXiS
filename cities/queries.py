@@ -73,6 +73,35 @@ def clear_cache():
     cache = None
 
 
+def _normalized_country(cc_raw):
+    """Same defaults as load_cache/create for country."""
+    return (
+        str(cc_raw).strip().upper()
+        if cc_raw is not None and str(cc_raw).strip()
+        else _DEFAULT_COUNTRY
+    )
+
+
+def _mongo_filter_delete_city(nm: str, sc: str, cc: str) -> dict:
+    """
+    Mongo filter for delete: same composite identity as duplicate detection.
+
+    For default country, match legacy docs that omit country_code.
+    """
+    filt = {NAME: nm, STATE_CODE: sc}
+    if cc == _DEFAULT_COUNTRY:
+        # fallbacks in case old data doesn't have country_code
+        filt['$or'] = [
+            {COUNTRY_CODE: cc},
+            {COUNTRY_CODE: {'$exists': False}},
+            {COUNTRY_CODE: None},
+            {COUNTRY_CODE: ''},
+        ]
+    else:
+        filt[COUNTRY_CODE] = cc
+    return filt
+
+
 def is_valid_id(_id: str) -> bool:
     if not isinstance(_id, str):
         return False
@@ -133,7 +162,11 @@ def create(city, reload=True):
     return rec_id
 
 
-def delete(name_or_id: str, state_code: str = None) -> bool:
+def delete(
+    name_or_id: str,
+    state_code: str = None,
+    country_code: str = None,
+) -> bool:
     # If only one argument provided, treat it as an ID (MongoDB _id)
     if state_code is None:
         # Convert string ID to ObjectId for MongoDB
@@ -145,15 +178,17 @@ def delete(name_or_id: str, state_code: str = None) -> bool:
         if ret < 1:
             raise ValueError(f'City not found: {name_or_id}')
     else:
-        # name + state_code (+ optional country_code via kwargs in future)
-        ret = dbc.delete(
-            CITY_COLLECTION, {NAME: name_or_id, STATE_CODE: state_code}
-        )
+        # name + state_code + normalized country_code (defaults like create())
+        nm = str(name_or_id).strip()
+        sc = str(state_code).strip().upper()
+        cc = _normalized_country(country_code)
+        filt = _mongo_filter_delete_city(nm, sc, cc)
+        ret = dbc.delete_many(CITY_COLLECTION, filt)
         if ret < 1:
-            raise ValueError(f'City not found: {name_or_id}, {state_code}')
+            raise ValueError(f'City not found: {nm}, {sc}, {cc}')
 
     load_cache()
-    return ret > 0
+    return bool(ret > 0)
 
 
 @needs_cache

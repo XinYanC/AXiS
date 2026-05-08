@@ -181,6 +181,14 @@ def delete(collection: str, filt: dict, db=GEO_DB):
 
 
 @needs_db
+def delete_many(collection: str, filt: dict, db=GEO_DB) -> int:
+    """Delete every document matched by filt; returns deleted count."""
+    print(f'{filt=}')
+    del_result = client[db][collection].delete_many(filt)
+    return del_result.deleted_count
+
+
+@needs_db
 def update(collection, filters, update_dict, db=GEO_DB):
     return client[db][collection].update_one(filters, {'$set': update_dict})
 
